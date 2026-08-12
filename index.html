@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
 <title>Orçamentos Engefitas / ProGlaze — FC Consultoria</title>
 <script>
 /** @license
@@ -436,11 +437,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);}
   #lockScreen{
     position:fixed;inset:0;background:linear-gradient(135deg,var(--navy),var(--navy-dark));
-    display:none;align-items:center;justify-content:center;flex-direction:column;z-index:999;color:#fff;text-align:center;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:999;color:#fff;text-align:center;
   }
   #lockScreen h1{font-size:22px;margin-bottom:6px;}
   #lockScreen p{color:#cfd9e6;margin-bottom:20px;}
   #lockScreen button{padding:12px 28px;font-size:15px;border:none;border-radius:8px;background:var(--amber);color:#22252b;font-weight:600;cursor:pointer;}
+  #lockScreen input{padding:11px 14px;font-size:15px;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;width:240px;text-align:center;margin-bottom:14px;}
+  #lockScreen input::placeholder{color:#9fb0c6;}
+  #lockScreen .gateError{color:#ffb3b3;font-size:13px;margin-top:12px;min-height:16px;}
+  #lockScreen .gateHint{color:#8ea3bd;font-size:11.5px;margin-top:18px;max-width:280px;}
   #app{display:flex;min-height:100vh;}
   .sidebar{
     width:230px;flex-shrink:0;background:var(--navy);color:#fff;padding:18px 12px;display:flex;flex-direction:column;gap:4px;
@@ -531,9 +536,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <body>
 
 <div id="lockScreen">
-  <h1>Sessão encerrada</h1>
-  <p>Seus orçamentos e produtos continuam salvos neste navegador.</p>
-  <button onclick="unlockApp()">Entrar novamente</button>
+  <h1 id="gateTitle">Acesso restrito</h1>
+  <p id="gateSubtitle">Digite a senha de acesso para continuar.</p>
+  <input type="password" id="gatePwInput" placeholder="Senha de acesso" autocomplete="off">
+  <div><button onclick="tryUnlock()">Entrar</button></div>
+  <div class="gateError" id="gateError"></div>
+  <div class="gateHint">Seus orçamentos e produtos continuam salvos neste navegador. Esqueceu a senha? Só é possível redefinir editando o arquivo do app.</div>
 </div>
 
 <div id="app">
@@ -777,6 +785,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             <div class="field"><label>Prefixo de numeração do orçamento</label><input id="cfg_prefixo"></div>
           </div>
           <div class="flexend"><button class="btn btn-primary" onclick="salvarConfig()">Salvar configurações</button></div>
+        </div>
+        <div class="panel">
+          <h3>Senha de acesso ao sistema</h3>
+          <p class="hint">Essa senha é pedida toda vez que alguém abre o link ou clica em "Sair". Ela fica guardada só neste navegador — se você trocar aqui, o link publicado continua pedindo a senha padrão em qualquer outro navegador/computador até que a senha seja trocada lá também.</p>
+          <div class="formgrid">
+            <div class="field"><label>Senha atual</label><input id="cfg_pw_atual" type="password"></div>
+            <div class="field"><label>Nova senha</label><input id="cfg_pw_nova" type="password"></div>
+            <div class="field"><label>Confirmar nova senha</label><input id="cfg_pw_confirma" type="password"></div>
+          </div>
+          <div class="flexend"><button class="btn btn-primary" onclick="trocarSenhaAcesso()">Trocar senha</button></div>
         </div>
         <div class="panel">
           <h3>Backup dos dados</h3>
@@ -1047,8 +1065,37 @@ function goView(v){
 }
 document.querySelectorAll('.navbtn[data-view]').forEach(b=>b.addEventListener('click',()=>goView(b.dataset.view)));
 
-function lockApp(){ document.getElementById('lockScreen').style.display='flex'; }
-function unlockApp(){ document.getElementById('lockScreen').style.display='none'; }
+const LS_ACCESS_PW = 'eng_access_pw';
+const DEFAULT_ACCESS_PW = 'engefitas2026';
+function getAccessPassword(){ return localStorage.getItem(LS_ACCESS_PW) || DEFAULT_ACCESS_PW; }
+function lockApp(){
+  sessionStorage.removeItem('eng_unlocked');
+  document.getElementById('gateTitle').textContent = 'Sessão encerrada';
+  document.getElementById('gateSubtitle').textContent = 'Digite a senha novamente para continuar.';
+  document.getElementById('gatePwInput').value = '';
+  document.getElementById('gateError').textContent = '';
+  document.getElementById('lockScreen').style.display='flex';
+  document.getElementById('gatePwInput').focus();
+}
+function tryUnlock(){
+  const val = document.getElementById('gatePwInput').value;
+  if(val === getAccessPassword()){
+    sessionStorage.setItem('eng_unlocked','1');
+    document.getElementById('lockScreen').style.display='none';
+    document.getElementById('gateError').textContent='';
+  } else {
+    document.getElementById('gateError').textContent = 'Senha incorreta. Tente novamente.';
+  }
+}
+function checkAccessOnLoad(){
+  if(sessionStorage.getItem('eng_unlocked')==='1'){
+    document.getElementById('lockScreen').style.display='none';
+  } else {
+    document.getElementById('gateTitle').textContent = 'Acesso restrito';
+    document.getElementById('gateSubtitle').textContent = 'Digite a senha de acesso para continuar.';
+    document.getElementById('lockScreen').style.display='flex';
+  }
+}
 
 /* ============ DASHBOARD ============ */
 function renderDashboard(){
@@ -1252,6 +1299,19 @@ function salvarConfig(){
   saveConfig(cfg);
   document.getElementById('userTag').textContent = cfg.nome;
   alert('Configurações salvas.');
+}
+function trocarSenhaAcesso(){
+  const atual = document.getElementById('cfg_pw_atual').value;
+  const nova = document.getElementById('cfg_pw_nova').value;
+  const confirma = document.getElementById('cfg_pw_confirma').value;
+  if(atual !== getAccessPassword()){ alert('Senha atual incorreta.'); return; }
+  if(!nova || nova.length < 4){ alert('A nova senha precisa ter pelo menos 4 caracteres.'); return; }
+  if(nova !== confirma){ alert('A confirmação não bate com a nova senha.'); return; }
+  localStorage.setItem(LS_ACCESS_PW, nova);
+  document.getElementById('cfg_pw_atual').value = '';
+  document.getElementById('cfg_pw_nova').value = '';
+  document.getElementById('cfg_pw_confirma').value = '';
+  alert('Senha de acesso alterada com sucesso (válida apenas neste navegador).');
 }
 function exportBackup(){
   const data = { produtos: PRODUTOS, orcamentos: loadOrcamentos(), config: loadConfig(), seq: localStorage.getItem(LS_SEQ) };
@@ -1708,6 +1768,8 @@ function gerarPDFObjeto(o){
 
 /* ============ INIT ============ */
 function init(){
+  checkAccessOnLoad();
+  document.getElementById('gatePwInput').addEventListener('keydown', function(e){ if(e.key==='Enter') tryUnlock(); });
   popularUFSelect();
   popularSelectProdutosOrcamento();
   document.getElementById('userTag').textContent = loadConfig().nome;
