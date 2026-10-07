@@ -716,7 +716,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Código</th><th>Descrição</th><th>Un.</th><th>Qtde</th><th>Vl. Unit. (R$)</th><th>Total (R$)</th><th></th></tr></thead>
+              <thead><tr><th>Código</th><th>Descrição</th><th>Un.</th><th>Cx.</th><th>Qtde</th><th>Vl. Unit. (R$)</th><th>Total (R$)</th><th></th></tr></thead>
               <tbody id="itensBody"></tbody>
             </table>
           </div>
@@ -2040,7 +2040,7 @@ function popularSelectProdutosOrcamento(){
   const cats = categoriasUnicas();
   sel.innerHTML = '<option value="">Selecione um produto para adicionar...</option>' +
     cats.map(cat=>`<optgroup label="${cat}">` +
-      PRODUTOS.filter(p=>p.categoria===cat).map(p=>`<option value="${p.id}">${p.codigo} — ${p.descricao}</option>`).join('') +
+      PRODUTOS.filter(p=>p.categoria===cat).map(p=>`<option value="${p.id}">${p.codigo} — ${p.descricao}${p.qtdeCaixa>0?' [cx:'+p.qtdeCaixa+']':''}</option>`).join('') +
     `</optgroup>`).join('');
 }
 function novoOrcamento(){
@@ -2072,7 +2072,9 @@ function adicionarItemForm(){
   if(!pid) return;
   const p = PRODUTOS.find(x=>x.id===pid);
   const tabela = document.getElementById('f_tabela').value;
-  orcamentoAtual.itens.push({ produtoId:p.id, codigo:p.codigo, descricao:p.descricao, unidade:p.unidade, qtde:1, valorUnit:p[tabela] });
+  // Qtde inicial = 1 caixa fechada quando possível
+  const qtdeInicial = (p.qtdeCaixa && p.qtdeCaixa > 0) ? p.qtdeCaixa : 1;
+  orcamentoAtual.itens.push({ produtoId:p.id, codigo:p.codigo, descricao:p.descricao, unidade:p.unidade, qtde:qtdeInicial, valorUnit:p[tabela] });
   sel.value='';
   renderItens();
   recalcTotais();
@@ -2153,14 +2155,32 @@ function faixaBadgeHtml(produtoId, valorUnit, idx){
 function renderItens(){
   const tbody = document.getElementById('itensBody');
   if(orcamentoAtual.itens.length===0){
-    tbody.innerHTML = `<tr><td colspan="7" class="empty">Nenhum item adicionado. Selecione um produto acima.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">Nenhum item adicionado. Selecione um produto acima.</td></tr>`;
     return;
   }
-  tbody.innerHTML = orcamentoAtual.itens.map((it,idx)=>`
+  tbody.innerHTML = orcamentoAtual.itens.map((it,idx)=>{
+    const prod = PRODUTOS.find(x=>x.id===it.produtoId);
+    const cx = prod ? (prod.qtdeCaixa||0) : 0;
+    // Aviso de caixa fechada
+    let cxCell = '';
+    if(cx > 0){
+      const multiplo = it.qtde % cx === 0;
+      const caixas = it.qtde / cx;
+      const proxMultiplo = Math.ceil(it.qtde / cx) * cx;
+      cxCell = multiplo
+        ? `<span style="font-size:11px;color:#1a6b3c;font-weight:600;" title="Qtde fechada em caixas">${caixas} cx (${cx}/cx) ✓</span>`
+        : `<span style="font-size:11px;color:#c62828;font-weight:600;" title="Qtde não fecha caixa">⚠ ${cx}/cx<br>
+            <button onclick="fecharCaixa(${idx},${cx},${proxMultiplo})" style="font-size:10px;padding:1px 5px;cursor:pointer;border:1px solid #c62828;border-radius:3px;background:#fff3f3;color:#c62828;margin-top:2px;">→${proxMultiplo}</button>
+           </span>`;
+    } else {
+      cxCell = `<span style="font-size:11px;color:#aaa;">—</span>`;
+    }
+    return `
     <tr class="item-row">
       <td>${it.codigo}</td>
       <td>${it.descricao}</td>
       <td>${it.unidade}</td>
+      <td style="text-align:center;">${cxCell}</td>
       <td><input class="qtdbox" type="number" min="1" value="${it.qtde}" onchange="alterarItem(${idx},'qtde',this.value)"></td>
       <td>
         <input class="pricebox" type="number" step="0.01" value="${it.valorUnit}"
@@ -2171,7 +2191,13 @@ function renderItens(){
       </td>
       <td>${brl(it.qtde*it.valorUnit)}</td>
       <td><button class="link-btn" onclick="removerItem(${idx})">Remover</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+}
+function fecharCaixa(idx, cx, novaQtde){
+  orcamentoAtual.itens[idx].qtde = novaQtde;
+  renderItens();
+  recalcTotais();
 }
 function updateFaixaBadge(idx, valor){
   const it = orcamentoAtual.itens[idx];
