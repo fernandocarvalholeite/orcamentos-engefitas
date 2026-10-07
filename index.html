@@ -773,17 +773,70 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
       <!-- FRETES -->
       <section id="view-fretes" hidden>
+
+        <!-- FATURAMENTO MÍNIMO -->
         <div class="panel">
-          <h3>Regras gerais de faturamento e frete</h3>
-          <ul style="font-size:13.5px;line-height:1.7;">
-            <li>Faturamento mínimo para distribuidores: <strong>R$ 2.000,00</strong> — para empresas de esquadria: <strong>R$ 6.000,00</strong>.</li>
-            <li>Frete é sempre <strong>CIF</strong> quando o pedido atinge o valor mínimo do estado (tabela abaixo). Abaixo do mínimo, cobra-se <strong>FOB + R$100,00 + 4%</strong> sobre o valor do pedido com impostos, ou o cliente pode optar por FOB puro (ideal).</li>
-            <li>Nunca aceitar parcelas menores que R$ 1.500,00 por boleto. Pagamento via Pix aceito.</li>
-            <li>Para pedidos faturados, pedimos aprovação de crédito prévia (até 48h) com contrato social + 3 notas fiscais de fornecedores com crédito parecido.</li>
-          </ul>
+          <h3>💰 Faturamento Mínimo</h3>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;">
+            <div style="flex:1;min-width:200px;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:14px;">
+              <div style="font-size:12px;color:#888;margin-bottom:2px;">Distribuidores</div>
+              <div style="font-size:22px;font-weight:700;color:#e65100;">R$ 2.000,00</div>
+            </div>
+            <div style="flex:1;min-width:200px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:14px;">
+              <div style="font-size:12px;color:#888;margin-bottom:2px;">Empresas de Esquadria</div>
+              <div style="font-size:22px;font-weight:700;color:#2e7d32;">R$ 3.000,00</div>
+              <div style="font-size:11px;color:#388e3c;margin-top:4px;">⚡ Exceção aprovada — mínimo reduzido de R$ 6.000</div>
+            </div>
+          </div>
         </div>
+
+        <!-- FINANCEIRO / PAGAMENTO -->
         <div class="panel">
-          <h3>Tabela de fretes por estado</h3>
+          <h3>🏦 Condições de Pagamento</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;flex-wrap:wrap;">
+            <div>
+              <p style="font-size:13px;line-height:1.7;margin:0 0 10px;">
+                Só emitimos boletos para clientes com <strong>prazo aprovado previamente</strong> pelo financeiro.<br>
+                Para aprovação de crédito: <strong>até 48h</strong>, com os documentos:
+              </p>
+              <ul style="font-size:13px;line-height:1.8;margin:0 0 10px;padding-left:18px;">
+                <li>Contrato Social</li>
+                <li>3 Notas Fiscais de fornecedores com crédito similar ao solicitado</li>
+              </ul>
+              <p style="font-size:13px;margin:0;"><strong>Parcela mínima por boleto: R$ 1.500,00</strong></p>
+              <p style="font-size:13px;margin:6px 0 0;"><strong>Pix:</strong> CNPJ 00.657.763/0001-00</p>
+            </div>
+            <div>
+              <p style="font-size:12px;color:#555;margin:0 0 6px;font-weight:600;">Prazos pré-cadastrados no sistema:</p>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;" id="prazos_badges">
+                <span style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:5px;padding:3px 10px;font-size:12px;font-weight:600;">28DD</span>
+                <span style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:5px;padding:3px 10px;font-size:12px;font-weight:600;">28/35/42DD</span>
+                <span style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:5px;padding:3px 10px;font-size:12px;font-weight:600;">28/42/56DD</span>
+                <span style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:5px;padding:3px 10px;font-size:12px;font-weight:600;">30/45/60DD</span>
+                <span style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:5px;padding:3px 10px;font-size:12px;font-weight:600;">56DD</span>
+                <span style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:5px;padding:3px 10px;font-size:12px;font-weight:600;">60DD</span>
+              </div>
+              <p style="font-size:12px;color:#888;margin:10px 0 0;">Qualquer prazo fora desses precisa de aprovação da gerência.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- REGRAS DE FRETE -->
+        <div class="panel">
+          <h3>🚚 Regras de Frete</h3>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+            <div style="flex:1;min-width:220px;background:#e3f2fd;border-radius:8px;padding:12px;font-size:13px;">
+              <strong>CIF (frete por conta da Engefitas)</strong><br>
+              Quando o pedido atinge o <strong>valor mínimo do estado</strong> (tabela abaixo).
+            </div>
+            <div style="flex:1;min-width:220px;background:#fce4ec;border-radius:8px;padding:12px;font-size:13px;">
+              <strong>Pedidos entre R$2.000 e o mínimo CIF</strong><br>
+              Cobrar <strong>R$ 100,00 + 4%</strong> sobre o valor com impostos, ou optar por <strong>FOB puro</strong> (ideal).<br>
+              <span style="font-size:11px;color:#888;">FOB: cliente informa transportadora e dados para cadastro.</span>
+            </div>
+          </div>
+
+          <h4 style="margin:0 0 8px;font-size:13px;color:#555;">Tabela por Estado</h4>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Região</th><th>UF</th><th>Pedido mínimo p/ CIF</th><th>Prazo de entrega</th></tr></thead>
