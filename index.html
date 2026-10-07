@@ -1550,17 +1550,22 @@ function faixaBadgeHtml(produtoId, valorUnit, idx){
     ? `<span class="faixa-mini ${matched.key}">✓ ${matched.label}</span>`
     : `<span class="faixa-mini no-ref">⚠ Abaixo Tabela 1</span>`;
 
-  // Tabela com todas as faixas e preços
-  const linhasTiers = tiers.map(t=>{
-    const tp = parseFloat(p[t.key])||0;
-    if(!tp) return '';
+  // Tabela com todas as faixas, intervalos e preços
+  const tiersValidos = tiers.filter(t => parseFloat(p[t.key]) > 0);
+  const linhasTiers = tiersValidos.map((t, i)=>{
+    const tp = parseFloat(p[t.key]);
+    const proxTp = tiersValidos[i+1] ? parseFloat(p[tiersValidos[i+1].key]) : null;
     const isAtual = matched && matched.key === t.key;
     const bg = isAtual ? 'background:#e2f7e9;font-weight:700;' : '';
-    const arrow = isAtual ? '◀ atual' : '';
+    const marcador = isAtual ? '◀' : '';
+    // Intervalo: de tp até (próximo - 0,01), ou "em cima" na última
+    const intervalo = proxTp
+      ? `R$ ${tp.toFixed(2)} — R$ ${(proxTp - 0.01).toFixed(2)}`
+      : `R$ ${tp.toFixed(2)} em diante`;
     return `<tr style="${bg}">
-      <td style="padding:2px 6px;font-size:11px;">${t.label}</td>
-      <td style="padding:2px 6px;font-size:11px;text-align:right;">R$ ${tp.toFixed(2)}</td>
-      <td style="padding:2px 6px;font-size:10px;color:#388e3c;">${arrow}</td>
+      <td style="padding:2px 6px;font-size:11px;white-space:nowrap;">${t.label}</td>
+      <td style="padding:2px 8px;font-size:11px;color:#555;white-space:nowrap;">${intervalo}</td>
+      <td style="padding:2px 4px;font-size:10px;color:#388e3c;font-weight:700;">${marcador}</td>
       <td style="padding:2px 4px;">
         <button onclick="aplicarPrecoFaixa(${idx},'${t.key}',${tp})" style="font-size:10px;padding:1px 5px;cursor:pointer;border:1px solid #aaa;border-radius:3px;background:#fff;">usar</button>
       </td>
