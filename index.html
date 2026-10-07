@@ -533,6 +533,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   .faixa-mini.f4{background:#d4edda;color:#155724;}
   .faixa-mini.f5{background:#e2d9f3;color:#4a2d7b;}
   .faixa-mini.no-ref{background:#f8d7da;color:#721c24;}
+  #com_tabela th,#com_tabela td{font-size:12px;padding:6px 8px;}
+  #com_tabela tfoot td{font-weight:700;border-top:2px solid var(--border);background:#f5f7fa;}
+  .com-orcamento-row td{background:#eef2f7;font-weight:600;font-size:12px;}
+  .com-valor-com{color:var(--green);font-weight:700;}
+  .com-total-row td{font-weight:700;background:#e2f7e9;color:var(--green);}
+  @media print{
+    .sidebar,.topbar,.btn,button,input,select,#com_nf_area,.formgrid{display:none!important;}
+    #com_print_header{display:block!important;}
+    .panel{box-shadow:none;border:1px solid #ddd;}
+    #com_resultado{display:block!important;}
+  }
   ::placeholder{color:#a7b3c2;}
   @media (max-width:800px){
     .sidebar{width:70px;}
@@ -564,6 +575,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     <button class="navbtn" data-view="orcamentos-list"><span class="label">Orçamentos Salvos</span></button>
     <button class="navbtn" data-view="produtos"><span class="label">Cadastro de Produtos</span></button>
     <button class="navbtn" data-view="fretes"><span class="label">Tabela de Fretes</span></button>
+    <button class="navbtn" data-view="comissoes"><span class="label">Painel de Comissões</span></button>
     <button class="navbtn" data-view="config"><span class="label">Configurações</span></button>
     <div class="sidebar-footer">
       <button class="navbtn" onclick="lockApp()"><span class="label">Sair</span></button>
@@ -782,6 +794,89 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       </section>
 
       <!-- CONFIG -->
+      <!-- PAINEL DE COMISSÕES -->
+      <section id="view-comissoes" hidden>
+        <div class="panel">
+          <h3>Filtrar orçamentos por período</h3>
+          <div class="formgrid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));">
+            <div class="field"><label>Data inicial</label><input type="date" id="com_de"></div>
+            <div class="field"><label>Data final</label><input type="date" id="com_ate"></div>
+            <div class="field"><label>Status</label>
+              <select id="com_status">
+                <option value="">Todos</option>
+                <option value="aprovado">Aprovado</option>
+                <option value="enviado">Enviado à Engefitas</option>
+                <option value="rascunho">Rascunho</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn btn-primary" onclick="renderComissoes()">Gerar Relatório</button>
+            <button class="btn" onclick="imprimirRelatorioComissao()">🖨 Imprimir / PDF</button>
+          </div>
+        </div>
+
+        <div id="com_resultado" style="display:none;">
+          <!-- Resumo geral -->
+          <div class="cards" id="com_cards"></div>
+
+          <!-- Tabela principal por orçamento -->
+          <div class="panel" id="com_print_area">
+            <div style="text-align:center;margin-bottom:16px;display:none;" id="com_print_header">
+              <div style="font-size:20px;font-weight:700;color:var(--navy)">FC Consultoria em Esquadria</div>
+              <div style="font-size:13px;color:var(--muted)">Representante Engefitas / ProGlaze — CNPJ 52.985.682/0001-32</div>
+              <div style="font-size:15px;font-weight:600;margin-top:8px;">RELATÓRIO DE COMISSÕES</div>
+              <div style="font-size:12px;color:var(--muted);" id="com_print_periodo"></div>
+            </div>
+
+            <h3 style="display:flex;justify-content:space-between;align-items:center;">
+              <span>Detalhamento por orçamento e item</span>
+              <span id="com_periodo_label" style="font-size:12px;color:var(--muted);font-weight:400;"></span>
+            </h3>
+            <div class="table-wrap">
+              <table id="com_tabela">
+                <thead>
+                  <tr>
+                    <th>Orçamento</th>
+                    <th>Data</th>
+                    <th>Cliente</th>
+                    <th>Cód. Produto</th>
+                    <th>Descrição</th>
+                    <th>Un.</th>
+                    <th>Qtde</th>
+                    <th>Vl. Unit.</th>
+                    <th>Total Item</th>
+                    <th>Faixa</th>
+                    <th>% Com.</th>
+                    <th>Vl. Comissão</th>
+                  </tr>
+                </thead>
+                <tbody id="com_tbody"></tbody>
+                <tfoot id="com_tfoot"></tfoot>
+              </table>
+            </div>
+
+            <!-- Nota fiscal -->
+            <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);">
+              <h3>Nota Fiscal Recebida</h3>
+              <p class="hint">Anexe a nota fiscal que a Engefitas emitiu para o pagamento desta comissão. O arquivo fica salvo neste período de apuração.</p>
+              <div id="com_nf_area">
+                <div class="row" style="align-items:center;gap:12px;flex-wrap:wrap;">
+                  <button class="btn" onclick="document.getElementById('com_nf_input').click()">📎 Anexar Nota Fiscal (PDF / imagem)</button>
+                  <input type="file" id="com_nf_input" accept=".pdf,.png,.jpg,.jpeg" style="display:none;" onchange="anexarNotaFiscal(event)">
+                  <div id="com_nf_status" style="font-size:13px;color:var(--muted);">Nenhuma NF anexada para este período.</div>
+                </div>
+                <div id="com_nf_lista" style="margin-top:10px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="com_vazio" class="panel" style="text-align:center;color:var(--muted);padding:40px;">
+          Selecione um período e clique em <strong>Gerar Relatório</strong>.
+        </div>
+      </section>
+
       <section id="view-config" hidden>
         <div class="panel">
           <h3>Dados do representante (aparecem no rodapé do PDF)</h3>
@@ -1053,13 +1148,14 @@ function fmtDateBR(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); retur
 function uid(){ return 'o'+Date.now()+Math.floor(Math.random()*1000); }
 
 /* ============ NAV ============ */
-const views = ['dashboard','orcamento-form','orcamentos-list','produtos','fretes','config'];
+const views = ['dashboard','orcamento-form','orcamentos-list','produtos','fretes','comissoes','config'];
 const titles = {
   dashboard:['Painel','Visão geral dos seus orçamentos'],
   'orcamento-form':['Novo Orçamento','Monte o orçamento e gere o PDF para enviar à Engefitas'],
   'orcamentos-list':['Orçamentos Salvos','Histórico completo de orçamentos'],
   produtos:['Cadastro de Produtos','Produtos e tabela de preços (5 faixas de comissão)'],
   fretes:['Tabela de Fretes','Regras de faturamento e frete por estado'],
+  comissoes:['Painel de Comissões','Relatório de comissões por período para apresentar à Engefitas'],
   config:['Configurações','Dados do representante e backup']
 };
 function goView(v){
@@ -1073,6 +1169,7 @@ function goView(v){
   if(v==='orcamentos-list') renderOrcamentosList();
   if(v==='produtos') renderProdutos();
   if(v==='fretes') renderFretes();
+  if(v==='comissoes') renderComissoes();
   if(v==='config') renderConfig();
   if(v==='orcamento-form' && orcamentoAtual.itens.length===0 && !orcamentoAtual.numero) novoOrcamento();
 }
@@ -1844,6 +1941,208 @@ function init(){
   goView('dashboard');
 }
 init();
+
+/* ============ PAINEL DE COMISSÕES ============ */
+const LS_NFS = 'eng_notas_fiscais'; // {periodoKey: [{nome, dataBase64, tipo, dataAnexo}]}
+
+function getPeriodoKey(){
+  const de = document.getElementById('com_de').value;
+  const ate = document.getElementById('com_ate').value;
+  return de+'_'+ate;
+}
+
+function detectarFaixa(produtoId, valorUnit){
+  const p = PRODUTOS.find(x=>x.id===produtoId);
+  if(!p) return {faixa:'—',pct:0};
+  const tiers = [
+    {key:'f1',pct:3},{key:'f2',pct:4},{key:'f3',pct:5},{key:'f4',pct:6},{key:'f5',pct:7}
+  ];
+  const v = parseFloat(valorUnit)||0;
+  let matched = null;
+  for(const t of tiers){
+    const tp = parseFloat(p[t.key])||0;
+    if(tp>0 && v>=tp) matched=t;
+  }
+  if(!matched) return {faixa:'< Tab.1',pct:0};
+  return {faixa:'Tab.'+matched.key.replace('f',''), pct:matched.pct};
+}
+
+function renderComissoes(){
+  const de = document.getElementById('com_de').value;
+  const ate = document.getElementById('com_ate').value;
+  const statusF = document.getElementById('com_status').value;
+
+  // Define período padrão se vazio (mês atual)
+  if(!de){
+    const hoje = new Date();
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    document.getElementById('com_de').value = ini.toISOString().slice(0,10);
+    document.getElementById('com_ate').value = hoje.toISOString().slice(0,10);
+    renderComissoes();
+    return;
+  }
+
+  let orcamentos = loadOrcamentos().filter(o=>{
+    const d = o.data||'';
+    const dentroData = (!de || d>=de) && (!ate || d<=ate);
+    const dentroStatus = !statusF || o.status===statusF;
+    return dentroData && dentroStatus && (o.itens||[]).length>0;
+  }).sort((a,b)=>a.data>b.data?1:-1);
+
+  document.getElementById('com_vazio').style.display = orcamentos.length===0 ? 'block' : 'none';
+  document.getElementById('com_resultado').style.display = orcamentos.length===0 ? 'none' : 'block';
+
+  if(orcamentos.length===0) return;
+
+  // Labels período
+  const periodoTxt = (de?fmtDateBR(de):'início') + ' a ' + (ate?fmtDateBR(ate):'hoje');
+  document.getElementById('com_periodo_label').textContent = periodoTxt;
+  document.getElementById('com_print_periodo').textContent = 'Período: ' + periodoTxt;
+
+  // Montagem das linhas
+  let rows = [];
+  let totalVendas = 0, totalComissao = 0;
+  let comissoesPorFaixa = {f1:0,f2:0,f3:0,f4:0,f5:0,outro:0};
+
+  orcamentos.forEach(o=>{
+    let subVendas = 0, subCom = 0;
+    (o.itens||[]).forEach(it=>{
+      const totalItem = (it.qtde||0)*(it.valorUnit||0);
+      const {faixa, pct} = detectarFaixa(it.produtoId, it.valorUnit);
+      const valorCom = totalItem * pct / 100;
+      subVendas += totalItem;
+      subCom += valorCom;
+      totalVendas += totalItem;
+      totalComissao += valorCom;
+      const fKey = 'f'+faixa.replace('Tab.','');
+      if(comissoesPorFaixa[fKey]!==undefined) comissoesPorFaixa[fKey]+=valorCom; else comissoesPorFaixa.outro+=valorCom;
+      rows.push({
+        orcNum: o.numero, orcData: o.data, cliente: o.cliente?.razao||'-',
+        codigo: it.codigo, descricao: it.descricao, unidade: it.unidade,
+        qtde: it.qtde, valorUnit: it.valorUnit, totalItem, faixa, pct, valorCom,
+        orcId: o.id, _grupo: false
+      });
+    });
+    // linha subtotal por orçamento
+    rows.push({_subtotal:true, orcNum:o.numero, subVendas, subCom, cliente: o.cliente?.razao||'-', orcData:o.data});
+  });
+
+  // Render tabela
+  const tbody = document.getElementById('com_tbody');
+  let html = '';
+  let lastOrc = null;
+  rows.forEach(r=>{
+    if(r._subtotal){
+      html += `<tr class="com-total-row">
+        <td colspan="8" style="text-align:right;padding-right:12px;">Subtotal orçamento ${r.orcNum}</td>
+        <td>${brl(r.subVendas)}</td><td></td><td></td>
+        <td class="com-valor-com">${brl(r.subCom)}</td>
+      </tr>`;
+      return;
+    }
+    if(r.orcNum !== lastOrc){
+      html += `<tr class="com-orcamento-row">
+        <td>${r.orcNum}</td><td>${fmtDateBR(r.orcData)}</td>
+        <td colspan="10">${r.cliente}</td>
+      </tr>`;
+      lastOrc = r.orcNum;
+    }
+    html += `<tr>
+      <td></td><td></td><td></td>
+      <td>${r.codigo}</td>
+      <td>${r.descricao}</td>
+      <td>${r.unidade}</td>
+      <td style="text-align:right">${r.qtde}</td>
+      <td style="text-align:right">${brl(r.valorUnit)}</td>
+      <td style="text-align:right">${brl(r.totalItem)}</td>
+      <td style="text-align:center"><span class="faixa-mini f${r.faixa.replace('Tab.','')}" style="font-size:10px;">${r.faixa}</span></td>
+      <td style="text-align:center">${r.pct}%</td>
+      <td class="com-valor-com" style="text-align:right">${brl(r.valorCom)}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+
+  // Footer total geral
+  document.getElementById('com_tfoot').innerHTML = `
+    <tr>
+      <td colspan="8" style="text-align:right;padding-right:12px;font-size:13px;">TOTAL GERAL DO PERÍODO</td>
+      <td style="text-align:right">${brl(totalVendas)}</td>
+      <td colspan="2" style="text-align:center;font-size:11px;color:var(--muted)">
+        3%:${brl(comissoesPorFaixa.f1)} | 4%:${brl(comissoesPorFaixa.f2)} | 5%:${brl(comissoesPorFaixa.f3)} | 6%:${brl(comissoesPorFaixa.f4)} | 7%:${brl(comissoesPorFaixa.f5)}
+      </td>
+      <td class="com-valor-com" style="text-align:right;font-size:15px;">${brl(totalComissao)}</td>
+    </tr>`;
+
+  // Cards resumo
+  document.getElementById('com_cards').innerHTML = `
+    <div class="card"><div class="card-label">Orçamentos no período</div><div class="card-val">${orcamentos.length}</div></div>
+    <div class="card"><div class="card-label">Total de vendas</div><div class="card-val">${brl(totalVendas)}</div></div>
+    <div class="card"><div class="card-label">Total de comissão</div><div class="card-val" style="color:var(--green)">${brl(totalComissao)}</div></div>
+    <div class="card"><div class="card-label">% médio</div><div class="card-val">${totalVendas>0?(totalComissao/totalVendas*100).toFixed(2)+'%':'—'}</div></div>`;
+
+  // Notas fiscais deste período
+  renderNFLista();
+}
+
+function imprimirRelatorioComissao(){
+  document.getElementById('com_print_header').style.display='block';
+  window.print();
+  setTimeout(()=>{ document.getElementById('com_print_header').style.display='none'; }, 1000);
+}
+
+/* ---- Nota Fiscal ---- */
+function anexarNotaFiscal(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const key = getPeriodoKey();
+  const reader = new FileReader();
+  reader.onload = function(e){
+    let nfs = JSON.parse(localStorage.getItem(LS_NFS)||'{}');
+    if(!nfs[key]) nfs[key]=[];
+    nfs[key].push({
+      nome: file.name,
+      tipo: file.type,
+      dataBase64: e.target.result,
+      dataAnexo: new Date().toLocaleString('pt-BR')
+    });
+    localStorage.setItem(LS_NFS, JSON.stringify(nfs));
+    document.getElementById('com_nf_input').value='';
+    renderNFLista();
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderNFLista(){
+  const key = getPeriodoKey();
+  const nfs = JSON.parse(localStorage.getItem(LS_NFS)||'{}');
+  const lista = nfs[key]||[];
+  const statusEl = document.getElementById('com_nf_status');
+  const listaEl = document.getElementById('com_nf_lista');
+  if(lista.length===0){
+    statusEl.textContent = 'Nenhuma NF anexada para este período.';
+    listaEl.innerHTML='';
+    return;
+  }
+  statusEl.textContent = lista.length+' arquivo(s) anexado(s).';
+  listaEl.innerHTML = lista.map((nf,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f5f7fa;border-radius:8px;margin-bottom:6px;">
+      <span style="font-size:20px;">${nf.tipo==='application/pdf'?'📄':'🖼'}</span>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px;">${nf.nome}</div>
+        <div style="font-size:11px;color:var(--muted)">Anexado em ${nf.dataAnexo}</div>
+      </div>
+      <a href="${nf.dataBase64}" download="${nf.nome}" class="btn btn-sm" style="font-size:11px;padding:4px 10px;">⬇ Baixar</a>
+      <button class="btn btn-sm btn-danger" style="font-size:11px;padding:4px 10px;" onclick="removerNF('${key}',${i})">Remover</button>
+    </div>`).join('');
+}
+
+function removerNF(key, idx){
+  if(!confirm('Remover este arquivo?')) return;
+  let nfs = JSON.parse(localStorage.getItem(LS_NFS)||'{}');
+  if(nfs[key]) nfs[key].splice(idx,1);
+  localStorage.setItem(LS_NFS, JSON.stringify(nfs));
+  renderNFLista();
+}
 </script>
 </body>
 </html>
