@@ -738,6 +738,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             <button class="btn" onclick="salvarOrcamento(false)">Salvar rascunho</button>
             <button class="btn btn-primary" onclick="salvarOrcamento(true)">Salvar</button>
             <button class="btn btn-amber" onclick="gerarPDF()">Gerar PDF para Engefitas</button>
+            <button class="btn" style="background:#1a6b3c;color:#fff;border-color:#1a6b3c;" onclick="abrirOrcCliente()">📋 Proposta para Cliente</button>
           </div>
         </div>
       </section>
@@ -1736,6 +1737,54 @@ function renderOrcCliente(){
   });
   ocRenderItens();
   ocRecalc();
+}
+function abrirOrcCliente(){
+  // Copia dados do formulário Engefitas para o Orçamento Cliente
+  const c = {
+    razao: document.getElementById('c_razao').value,
+    cnpj:  document.getElementById('c_cnpj').value,
+    endereco: document.getElementById('c_endereco').value,
+    cidade: document.getElementById('c_cidade').value,
+    cep:   document.getElementById('c_cep').value,
+    telefone: document.getElementById('c_telefone').value,
+    uf:    document.getElementById('c_uf').value
+  };
+  const itensEngefitas = orcamentoAtual.itens.map(it=>({
+    codigo: it.codigo || '',
+    descricao: it.descricao || '',
+    unidade: it.unidade || 'UN',
+    qtde: it.qtde,
+    valorUnit: it.valorUnit
+  }));
+  const freteVal = document.getElementById('f_frete').value || '0';
+  const uf = c.uf;
+  const freteInfo = uf ? FRETES.find(x=>x.uf===uf) : null;
+  const subtotal = itensEngefitas.reduce((s,it)=>s+it.qtde*it.valorUnit,0);
+  const tipoFrete = (freteInfo && subtotal >= freteInfo.min) ? 'cif' : (parseFloat(freteVal)>0 ? 'fob_calc' : 'cif');
+
+  // Monta objeto e salva no localStorage do orçamento cliente
+  const ocData = {
+    numero: orcamentoAtual.numero || '',
+    dataEmissao: orcamentoAtual.data || todayISO(),
+    dataEntrega: orcamentoAtual.validade || '',
+    condpag: orcamentoAtual.condPag || '',
+    cliNome: c.razao,
+    cliCnpj: c.cnpj,
+    cliEnd: c.endereco,
+    cliCidade: c.cidade,
+    cliBairro: '',
+    cliCep: c.cep,
+    cliTel1: c.telefone,
+    cliTel2: '',
+    uf: uf,
+    frete: freteVal,
+    tipoFrete: tipoFrete,
+    transportadora: 'A COMBINAR',
+    obs: '',
+    itens: itensEngefitas
+  };
+  localStorage.setItem(LS_OC, JSON.stringify(ocData));
+  goView('orc-cliente');
 }
 function ocAdicionarItemERecalcFrete(){
   ocAdicionarItem();
