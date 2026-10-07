@@ -745,15 +745,22 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       <!-- ORÇAMENTOS LIST -->
       <section id="view-orcamentos-list" hidden>
         <div class="panel">
-          <div class="searchbar">
-            <input id="listSearch" placeholder="Buscar por cliente ou número..." oninput="renderOrcamentosList()" style="flex:1;min-width:220px;">
-            <select id="listStatusFilter" onchange="renderOrcamentosList()">
+          <div class="searchbar" style="flex-wrap:wrap;gap:8px;">
+            <input id="listSearch" placeholder="Buscar por cliente ou número..." oninput="renderOrcamentosList()" style="flex:2;min-width:200px;">
+            <select id="listStatusFilter" onchange="renderOrcamentosList()" style="min-width:170px;">
               <option value="">Todos os status</option>
               <option value="rascunho">Rascunho</option>
               <option value="enviado">Enviado à Engefitas</option>
               <option value="aprovado">Aprovado</option>
               <option value="recusado">Recusado</option>
             </select>
+            <div style="display:flex;align-items:center;gap:6px;font-size:13px;">
+              <label style="color:var(--muted);white-space:nowrap;">De:</label>
+              <input type="date" id="listDataDe" onchange="renderOrcamentosList()" style="padding:7px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+              <label style="color:var(--muted);white-space:nowrap;">Até:</label>
+              <input type="date" id="listDataAte" onchange="renderOrcamentosList()" style="padding:7px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+              <button onclick="limparFiltroData()" title="Limpar filtro de data" style="background:none;border:none;cursor:pointer;font-size:15px;color:var(--muted);padding:4px;">✕</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table>
@@ -2380,13 +2387,22 @@ function mudarStatusOrcamento(id, status){
 }
 
 /* ============ LISTA ORÇAMENTOS ============ */
+function limparFiltroData(){
+  document.getElementById('listDataDe').value = '';
+  document.getElementById('listDataAte').value = '';
+  renderOrcamentosList();
+}
 function renderOrcamentosList(){
   const q = (document.getElementById('listSearch').value||'').toLowerCase();
   const statusF = document.getElementById('listStatusFilter').value;
+  const dataDe = document.getElementById('listDataDe').value; // 'YYYY-MM-DD' ou ''
+  const dataAte = document.getElementById('listDataAte').value;
   let list = loadOrcamentos().sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
   list = list.filter(o=>
     (!statusF || o.status===statusF) &&
-    (!q || o.numero.toLowerCase().includes(q) || (o.cliente?.razao||'').toLowerCase().includes(q))
+    (!q || o.numero.toLowerCase().includes(q) || (o.cliente?.razao||'').toLowerCase().includes(q)) &&
+    (!dataDe || (o.data && o.data >= dataDe)) &&
+    (!dataAte || (o.data && o.data <= dataAte))
   );
   const tbody = document.getElementById('orcamentosListBody');
   if(list.length===0){ tbody.innerHTML = `<tr><td colspan="7" class="empty">Nenhum orçamento encontrado.</td></tr>`; return; }
