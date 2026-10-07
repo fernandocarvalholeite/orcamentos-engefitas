@@ -1010,13 +1010,34 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
               <label style="font-size:12px;color:var(--muted);">Preço Unit. (R$)</label>
               <input type="number" id="oc_sel_preco" step="0.01" placeholder="0,00" style="width:100%;">
             </div>
-            <button class="btn btn-primary" onclick="ocAdicionarItem()">+ Adicionar</button>
+            <button class="btn btn-primary" onclick="ocAdicionarItemERecalcFrete()">+ Adicionar</button>
           </div>
-          <!-- Observações e frete -->
+          <!-- Frete e observações -->
           <div class="formgrid" style="margin-top:14px;">
-            <div class="field"><label>Frete (R$)</label><input type="number" id="oc_frete" value="0" step="0.01" oninput="ocRecalc()"></div>
+            <div class="field">
+              <label>UF do Cliente</label>
+              <select id="oc_uf" onchange="ocCalcFrete()">
+                <option value="">Selecione o estado...</option>
+              </select>
+            </div>
             <div class="field"><label>Transportadora</label><input id="oc_transportadora" value="A COMBINAR"></div>
-            <div class="field" style="grid-column:1/-1"><label>Observações</label><input id="oc_obs"></div>
+            <div class="field" style="grid-column:1/-1"><label>Observações (aparece na proposta)</label><input id="oc_obs"></div>
+          </div>
+          <!-- Dica de frete automática -->
+          <div id="oc_frete_dica" style="display:none;padding:12px 14px;border-radius:7px;border:1px solid #ddd;margin-top:8px;font-size:13px;line-height:1.7;"></div>
+          <div class="formgrid" style="margin-top:10px;">
+            <div class="field">
+              <label>Frete (R$) <span style="font-size:11px;color:#888;">— preenchido automaticamente pela regra CIF/FOB</span></label>
+              <input type="number" id="oc_frete" value="0" step="0.01" oninput="ocRecalc()">
+            </div>
+            <div class="field">
+              <label>Tipo de Frete</label>
+              <select id="oc_tipo_frete" onchange="ocAplicarTipoFrete()">
+                <option value="cif">CIF — Frete por conta da Engefitas</option>
+                <option value="fob_calc">FOB + R$100 + 4% (cobrado do cliente)</option>
+                <option value="fob_puro">FOB Puro (cliente define transportadora)</option>
+              </select>
+            </div>
           </div>
           <div class="flexend" style="gap:10px;margin-top:16px;">
             <button class="btn" onclick="ocLimpar()">🗑 Limpar tudo</button>
@@ -1604,13 +1625,73 @@ function ocSave(){
     cliTel1: document.getElementById('oc_cli_tel1').value,
     cliTel2: document.getElementById('oc_cli_tel2').value,
     frete: document.getElementById('oc_frete').value,
+    uf: document.getElementById('oc_uf').value,
+    tipoFrete: document.getElementById('oc_tipo_frete').value,
     transportadora: document.getElementById('oc_transportadora').value,
     obs: document.getElementById('oc_obs').value,
     itens: ocItens
   };
   localStorage.setItem(LS_OC, JSON.stringify(data));
 }
+function ocPopularUF(){
+  const sel = document.getElementById('oc_uf');
+  if(sel.options.length > 1) return;
+  const ufs = Object.keys(UF_REGIAO).sort();
+  ufs.forEach(uf=>{
+    const o = document.createElement('option');
+    o.value = uf; o.textContent = `${uf} — ${UF_REGIAO[uf]}`;
+    sel.appendChild(o);
+  });
+}
+function ocCalcFrete(){
+  const uf = document.getElementById('oc_uf').value;
+  const dica = document.getElementById('oc_frete_dica');
+  if(!uf){ dica.style.display='none'; return; }
+  const f = FRETES.find(x=>x.uf===uf);
+  if(!f){ dica.style.display='none'; return; }
+  const subtotal = ocItens.reduce((s,it)=>s+it.qtde*it.valorUnit,0);
+  const abaixoCIF = subtotal < f.min;
+  const freteCalc = 100 + subtotal * 0.04;
+  const faltaCIF = f.min - subtotal;
+  dica.style.display = 'block';
+  if(abaixoCIF){
+    dica.style.background = '#fff3cd';
+    dica.style.borderColor = '#ffc107';
+    document.getElementById('oc_tipo_frete').value = 'fob_calc';
+    document.getElementById('oc_frete').value = freteCalc.toFixed(2);
+    dica.innerHTML = `⚠ <strong>${UF_REGIAO[uf]} (${uf})</strong> — Mínimo CIF: <strong>${brl(f.min)}</strong> · Prazo estimado: <strong>${f.prazo}</strong><br>
+      Pedido atual: <strong>${brl(subtotal)}</strong> — Falta <strong style="color:#c62828;">${brl(faltaCIF)}</strong> em produtos para o cliente ter frete grátis (CIF).<br>
+      Frete calculado: <strong>R$ 100,00 + 4% sobre ${brl(subtotal)} = <span style="color:#c62828;">${brl(freteCalc)}</span></strong> — incluído na proposta ao cliente.<br>
+      <span style="font-size:11px;">Ou o cliente pode optar por FOB puro — ajuste o tipo ao lado.</span>`;
+  } else {
+    dica.style.background = '#d4edda';
+    dica.style.borderColor = '#28a745';
+    document.getElementById('oc_tipo_frete').value = 'cif';
+    document.getElementById('oc_frete').value = '0';
+    dica.innerHTML = `✅ <strong>${UF_REGIAO[uf]} (${uf})</strong> — Mínimo CIF: <strong>${brl(f.min)}</strong> · Prazo: <strong>${f.prazo}</strong><br>
+      Pedido <strong>${brl(subtotal)}</strong> atinge o mínimo — <strong>Frete CIF incluso</strong>, sem custo adicional para o cliente.`;
+  }
+  ocRecalc();
+  ocSave();
+}
+function ocAplicarTipoFrete(){
+  const tipo = document.getElementById('oc_tipo_frete').value;
+  const subtotal = ocItens.reduce((s,it)=>s+it.qtde*it.valorUnit,0);
+  if(tipo==='fob_calc'){
+    document.getElementById('oc_frete').value = (100 + subtotal*0.04).toFixed(2);
+    document.getElementById('oc_transportadora').value = 'A COMBINAR (FOB)';
+  } else if(tipo==='fob_puro'){
+    document.getElementById('oc_frete').value = '0';
+    document.getElementById('oc_transportadora').value = 'A COMBINAR (FOB — cliente define)';
+  } else {
+    document.getElementById('oc_frete').value = '0';
+    document.getElementById('oc_transportadora').value = 'A COMBINAR';
+  }
+  ocRecalc();
+  ocSave();
+}
 function renderOrcCliente(){
+  ocPopularUF();
   // Preencher select de produtos
   const sel = document.getElementById('oc_sel_produto');
   sel.innerHTML = '<option value="">Selecione um produto...</option>' +
@@ -1638,6 +1719,8 @@ function renderOrcCliente(){
   if(d.frete) document.getElementById('oc_frete').value = d.frete;
   if(d.transportadora) document.getElementById('oc_transportadora').value = d.transportadora;
   if(d.obs) document.getElementById('oc_obs').value = d.obs;
+  if(d.uf){ document.getElementById('oc_uf').value = d.uf; ocCalcFrete(); }
+  if(d.tipoFrete) document.getElementById('oc_tipo_frete').value = d.tipoFrete;
   ocItens = d.itens || [];
   // Salvar automaticamente ao digitar
   document.querySelectorAll('#view-orc-cliente input, #view-orc-cliente select').forEach(el=>{
@@ -1646,6 +1729,11 @@ function renderOrcCliente(){
   });
   ocRenderItens();
   ocRecalc();
+}
+function ocAdicionarItemERecalcFrete(){
+  ocAdicionarItem();
+  const uf = document.getElementById('oc_uf').value;
+  if(uf) ocCalcFrete();
 }
 function ocAdicionarItem(){
   const selProd = document.getElementById('oc_sel_produto');
@@ -1721,6 +1809,30 @@ function ocGerarPDF(){
   const totalQtde = ocItens.reduce((s,it)=>s+it.qtde,0);
   const dataEmissao = d.dataEmissao ? new Date(d.dataEmissao+'T12:00:00').toLocaleDateString('pt-BR') : '';
   const dataEntrega = d.dataEntrega ? new Date(d.dataEntrega+'T12:00:00').toLocaleDateString('pt-BR') : '';
+
+  // Dados de frete/prazo por UF
+  const uf = d.uf || '';
+  const freteInfo = uf ? FRETES.find(x=>x.uf===uf) : null;
+  const tipoFrete = d.tipoFrete || 'cif';
+  let freteLabel = '';
+  let prazoLabel = freteInfo ? freteInfo.prazo : '';
+  if(tipoFrete === 'cif'){
+    freteLabel = 'CIF — Frete por conta da Engefitas (incluso no pedido)';
+  } else if(tipoFrete === 'fob_calc'){
+    freteLabel = `FOB — R$ 100,00 + 4% sobre produtos = ${brl(frete)} (cobrado separado)`;
+  } else {
+    freteLabel = 'FOB — Cliente define a transportadora e arca com o frete';
+  }
+  // Aviso CIF no PDF (se abaixo do mínimo)
+  let avisoFretePDF = '';
+  if(freteInfo && subtotal < freteInfo.min && tipoFrete === 'fob_calc'){
+    const faltaCIF = freteInfo.min - subtotal;
+    avisoFretePDF = `<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:5px;padding:7px 10px;font-size:10.5px;margin-top:6px;">
+      ℹ️ Pedido abaixo do mínimo CIF para ${UF_REGIAO[uf]} (${uf}): <strong>${brl(freteInfo.min)}</strong>.
+      Faltam <strong>${brl(faltaCIF)}</strong> em produtos para o frete ser por conta da Engefitas.
+    </div>`;
+  }
+
   const linhasItens = ocItens.map((it,i)=>`
     <tr>
       <td>${it.codigo}</td>
@@ -1747,8 +1859,9 @@ function ocGerarPDF(){
         <div class="label">ORÇAMENTO</div>
         <div class="num">${d.numero||'—'}</div>
         <div class="datas">
-          <b>Data Emissão:</b> ${dataEmissao}<br>
-          <b>Data Entrega:</b> ${dataEntrega}
+          <b>Emissão:</b> ${dataEmissao}<br>
+          ${dataEntrega ? '<b>Entrega prevista:</b> '+dataEntrega+'<br>' : ''}
+          ${prazoLabel ? '<b>Prazo de entrega:</b> '+prazoLabel : ''}
         </div>
       </div>
     </div>
@@ -1756,7 +1869,7 @@ function ocGerarPDF(){
     <div class="oc-cliente-box">
       <div><strong>Nome:</strong> ${d.cliNome||''} &nbsp;&nbsp; <strong>CNPJ/CPF:</strong> ${d.cliCnpj||''} &nbsp;&nbsp; <strong>Tel:</strong> ${d.cliTel1||''} ${d.cliTel2?'/ '+d.cliTel2:''}</div>
       <div><strong>Endereço:</strong> ${d.cliEnd||''} &nbsp;&nbsp; <strong>Bairro:</strong> ${d.cliBairro||''}</div>
-      <div><strong>Cidade:</strong> ${d.cliCidade||''} &nbsp;&nbsp; <strong>CEP:</strong> ${d.cliCep||''}</div>
+      <div><strong>Cidade:</strong> ${d.cliCidade||''} ${uf ? '— '+uf : ''} &nbsp;&nbsp; <strong>CEP:</strong> ${d.cliCep||''}</div>
     </div>
     <!-- ITENS -->
     <table class="oc-itens">
@@ -1769,20 +1882,22 @@ function ocGerarPDF(){
     </table>
     <!-- RODAPÉ DE CAMPOS -->
     <div class="oc-footer-grid">
-      <div style="font-size:11.5px;line-height:2;">
-        <div><strong>Tabela Venc.:</strong> ${d.condpag||''}</div>
+      <div style="font-size:11.5px;line-height:1.9;">
+        <div><strong>Cond. Pagamento:</strong> ${d.condpag||''}</div>
+        <div><strong>Frete:</strong> ${freteLabel}</div>
         <div><strong>Transportadora:</strong> ${d.transportadora||'A COMBINAR'}</div>
         ${d.obs?`<div><strong>Observações:</strong> ${d.obs}</div>`:''}
         <div><strong>Vendedor:</strong> ${cfg.nome||'FC Consultoria'}</div>
       </div>
       <div class="oc-totais">
         <div><strong>Total de Itens:</strong> ${ocItens.length}</div>
-        <div><strong>Total dos Produtos:</strong> ${brl(subtotal)}</div>
-        <div><strong>Total Quantidade:</strong> ${totalQtde}</div>
-        <div><strong>Frete:</strong> ${brl(frete)}</div>
+        <div><strong>Qtde Total:</strong> ${totalQtde}</div>
+        <div><strong>Subtotal Produtos:</strong> ${brl(subtotal)}</div>
+        ${frete > 0 ? `<div><strong>Frete:</strong> ${brl(frete)}</div>` : '<div><strong>Frete:</strong> CIF (incluso)</div>'}
         <div class="oc-total-geral">Total R$: ${brl(geral)}</div>
       </div>
     </div>
+    ${avisoFretePDF}
     <div class="oc-rodape">
       Orçamento gerado por FC Consultoria e Representação — Representante Engefitas / ProGlaze no Mato Grosso<br>
       ${cfg.email||'FCconsultoria25@hotmail.com'} | ${cfg.telefone||'(66) 9 9986-7984'} | Validade: 3 dias
@@ -2048,6 +2163,10 @@ function recalcTotais(){
   const tabela = document.getElementById('f_tabela').value;
   const pct = {f1:3,f2:4,f3:5,f4:6,f5:7}[tabela];
   document.getElementById('comissaoInterna').textContent = `Comissão estimada (uso interno, não aparece no PDF): ${pct}% ≈ ${brl(subtotal*pct/100)}`;
+  // Atualizar dica de frete se UF estiver selecionada
+  if(document.getElementById('c_uf') && document.getElementById('c_uf').value){
+    atualizarDicaFrete();
+  }
 }
 document.getElementById('f_condpag').addEventListener('change', function(){
   document.getElementById('f_condpag_outro_wrap').style.display = this.value==='outro' ? 'block' : 'none';
@@ -2059,8 +2178,36 @@ function atualizarDicaFrete(){
   if(!uf){ el.style.display='none'; return; }
   const f = FRETES.find(x=>x.uf===uf);
   if(!f){ el.style.display='none'; return; }
-  el.style.display='block';
-  el.innerHTML = `Região <strong>${UF_REGIAO[uf]}</strong> — pedido mínimo para frete CIF: <strong>${brl(f.min)}</strong> · prazo de entrega: <strong>${f.prazo}</strong>. Abaixo do mínimo: FOB + R$100,00 + 4% sobre o valor com impostos.`;
+  const subtotal = orcamentoAtual.itens.reduce((s,it)=>s+it.qtde*it.valorUnit,0);
+  const faltaCIF = f.min - subtotal;
+  const freteExtra = subtotal >= f.min
+    ? null
+    : { fixo: 100, pct: 4, valor: 100 + subtotal * 0.04 };
+  if(freteExtra){
+    el.style.display='block';
+    el.style.background='#fff3cd';
+    el.style.borderColor='#ffc107';
+    el.innerHTML = `
+      ⚠ <strong>${UF_REGIAO[uf]} (${uf})</strong> — mínimo CIF: <strong>${brl(f.min)}</strong> · Prazo estimado: <strong>${f.prazo}</strong><br>
+      Pedido atual: <strong>${brl(subtotal)}</strong> — Falta <strong style="color:#c62828;">${brl(faltaCIF)}</strong> em produtos para o cliente ter frete grátis (CIF).<br>
+      Frete estimado: <strong>R$ 100,00 + 4% = ${brl(freteExtra.valor)}</strong>
+      &nbsp;|&nbsp; ou <strong>FOB</strong> (cliente escolhe transportadora).<br>
+      <span style="font-size:11px;color:#666;">Coloque o valor do frete no campo abaixo para incluir no orçamento, ou deixe 0 se for FOB.</span>`;
+    // Sugerir preenchimento automático
+    const freteInput = document.getElementById('f_frete');
+    if(!freteInput.value || freteInput.value==='0'){
+      freteInput.value = freteExtra.valor.toFixed(2);
+      recalcTotais();
+    }
+  } else {
+    el.style.display='block';
+    el.style.background='#d4edda';
+    el.style.borderColor='#28a745';
+    el.innerHTML = `✅ <strong>${UF_REGIAO[uf]} (${uf})</strong> — mínimo CIF: <strong>${brl(f.min)}</strong> · Prazo: <strong>${f.prazo}</strong><br>
+      Pedido <strong>${brl(subtotal)}</strong> atinge o mínimo — <strong>frete CIF incluso</strong> (sem custo adicional).`;
+    document.getElementById('f_frete').value = '0';
+    recalcTotais();
+  }
 }
 
 function maskCNPJ(el){
