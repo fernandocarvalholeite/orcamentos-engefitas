@@ -526,6 +526,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   .tag-cat{font-size:11px;background:#eef2f7;padding:2px 8px;border-radius:12px;color:#45566b;}
   select.faixa-select{font-weight:600;}
   .comissao-badge{background:#e2f7e9;color:var(--green);padding:6px 12px;border-radius:8px;font-size:12.5px;font-weight:600;display:inline-block;margin-top:6px;}
+  .faixa-mini{font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;display:inline-block;margin-top:3px;white-space:nowrap;}
+  .faixa-mini.f1{background:#fef3cd;color:#856404;}
+  .faixa-mini.f2{background:#d1ecf1;color:#0c5460;}
+  .faixa-mini.f3{background:#cce5ff;color:#004085;}
+  .faixa-mini.f4{background:#d4edda;color:#155724;}
+  .faixa-mini.f5{background:#e2d9f3;color:#4a2d7b;}
+  .faixa-mini.no-ref{background:#f8d7da;color:#721c24;}
   ::placeholder{color:#a7b3c2;}
   @media (max-width:800px){
     .sidebar{width:70px;}
@@ -1412,6 +1419,33 @@ function adicionarItemForm(){
   renderItens();
   recalcTotais();
 }
+function getFaixaInfo(produtoId, valorUnit){
+  const p = PRODUTOS.find(x=>x.id===produtoId);
+  if(!p) return null;
+  const tiers = [
+    {key:'f1',pct:3,label:'Tabela 1 — 3%'},
+    {key:'f2',pct:4,label:'Tabela 2 — 4%'},
+    {key:'f3',pct:5,label:'Tabela 3 — 5%'},
+    {key:'f4',pct:6,label:'Tabela 4 — 6%'},
+    {key:'f5',pct:7,label:'Tabela 5 — 7%'},
+  ];
+  const v = parseFloat(valorUnit)||0;
+  // Find which tier matches: exact match or closest tier where price >= tier price
+  let matched = null;
+  for(const t of tiers){
+    const tp = parseFloat(p[t.key])||0;
+    if(tp>0 && v>=tp) matched=t;
+  }
+  if(!matched && p.f1>0 && v<p.f1) matched=null; // below f1
+  return {tiers, p, matched, v};
+}
+function faixaBadgeHtml(produtoId, valorUnit){
+  const info = getFaixaInfo(produtoId, valorUnit);
+  if(!info) return '';
+  const {tiers, p, matched, v} = info;
+  if(!matched) return `<span class="faixa-mini no-ref">⚠ Abaixo Tabela 1</span>`;
+  return `<span class="faixa-mini ${matched.key}" title="Preço de referência Tabela: ${tiers.map(t=>t.label+' R$'+(p[t.key]||0).toFixed(2)).join(' | ')}">✓ ${matched.label}</span>`;
+}
 function renderItens(){
   const tbody = document.getElementById('itensBody');
   if(orcamentoAtual.itens.length===0){
@@ -1424,10 +1458,21 @@ function renderItens(){
       <td>${it.descricao}</td>
       <td>${it.unidade}</td>
       <td><input class="qtdbox" type="number" min="1" value="${it.qtde}" onchange="alterarItem(${idx},'qtde',this.value)"></td>
-      <td><input class="pricebox" type="number" step="0.01" value="${it.valorUnit}" onchange="alterarItem(${idx},'valorUnit',this.value)"></td>
+      <td>
+        <input class="pricebox" type="number" step="0.01" value="${it.valorUnit}"
+          oninput="updateFaixaBadge(${idx},this.value)"
+          onchange="alterarItem(${idx},'valorUnit',this.value)"
+          id="priceinput_${idx}">
+        <div id="faixabadge_${idx}">${faixaBadgeHtml(it.produtoId, it.valorUnit)}</div>
+      </td>
       <td>${brl(it.qtde*it.valorUnit)}</td>
       <td><button class="link-btn" onclick="removerItem(${idx})">Remover</button></td>
     </tr>`).join('');
+}
+function updateFaixaBadge(idx, valor){
+  const it = orcamentoAtual.itens[idx];
+  const el = document.getElementById('faixabadge_'+idx);
+  if(el) el.innerHTML = faixaBadgeHtml(it.produtoId, valor);
 }
 function alterarItem(idx, campo, valor){
   orcamentoAtual.itens[idx][campo] = toNum(valor);
