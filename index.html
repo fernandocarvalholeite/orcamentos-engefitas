@@ -1536,12 +1536,53 @@ function getFaixaInfo(produtoId, valorUnit){
   if(!matched && p.f1>0 && v<p.f1) matched=null; // below f1
   return {tiers, p, matched, v};
 }
-function faixaBadgeHtml(produtoId, valorUnit){
+function faixaBadgeHtml(produtoId, valorUnit, idx){
   const info = getFaixaInfo(produtoId, valorUnit);
   if(!info) return '';
   const {tiers, p, matched, v} = info;
-  if(!matched) return `<span class="faixa-mini no-ref">⚠ Abaixo Tabela 1</span>`;
-  return `<span class="faixa-mini ${matched.key}" title="Preço de referência Tabela: ${tiers.map(t=>t.label+' R$'+(p[t.key]||0).toFixed(2)).join(' | ')}">✓ ${matched.label}</span>`;
+  // Preço original da tabela padrão do orçamento
+  const tabelaPadrao = (document.getElementById('f_tabela')||{}).value || 'f1';
+  const precoOriginal = parseFloat(p[tabelaPadrao])||0;
+  const jaEOriginal = Math.abs(v - precoOriginal) < 0.005;
+
+  // Badge da faixa atual
+  const badgeAtual = matched
+    ? `<span class="faixa-mini ${matched.key}">✓ ${matched.label}</span>`
+    : `<span class="faixa-mini no-ref">⚠ Abaixo Tabela 1</span>`;
+
+  // Tabela com todas as faixas e preços
+  const linhasTiers = tiers.map(t=>{
+    const tp = parseFloat(p[t.key])||0;
+    if(!tp) return '';
+    const isAtual = matched && matched.key === t.key;
+    const bg = isAtual ? 'background:#e2f7e9;font-weight:700;' : '';
+    const arrow = isAtual ? '◀ atual' : '';
+    return `<tr style="${bg}">
+      <td style="padding:2px 6px;font-size:11px;">${t.label}</td>
+      <td style="padding:2px 6px;font-size:11px;text-align:right;">R$ ${tp.toFixed(2)}</td>
+      <td style="padding:2px 6px;font-size:10px;color:#388e3c;">${arrow}</td>
+      <td style="padding:2px 4px;">
+        <button onclick="aplicarPrecoFaixa(${idx},'${t.key}',${tp})" style="font-size:10px;padding:1px 5px;cursor:pointer;border:1px solid #aaa;border-radius:3px;background:#fff;">usar</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const btnRestaurar = !jaEOriginal
+    ? `<button onclick="restaurarPrecoOriginal(${idx},'${tabelaPadrao}',${precoOriginal})"
+        style="font-size:10px;padding:2px 7px;margin-top:4px;cursor:pointer;border:1px solid #888;border-radius:4px;background:#fff7e6;color:#7a4f00;">
+        ↩ Restaurar preço original (R$ ${precoOriginal.toFixed(2)})
+      </button>`
+    : '';
+
+  return `
+    <div>${badgeAtual}</div>
+    <div style="margin-top:4px;">
+      <table style="border-collapse:collapse;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;">
+        ${linhasTiers}
+      </table>
+    </div>
+    ${btnRestaurar}
+  `;
 }
 function renderItens(){
   const tbody = document.getElementById('itensBody');
@@ -1560,7 +1601,7 @@ function renderItens(){
           oninput="updateFaixaBadge(${idx},this.value)"
           onchange="alterarItem(${idx},'valorUnit',this.value)"
           id="priceinput_${idx}">
-        <div id="faixabadge_${idx}">${faixaBadgeHtml(it.produtoId, it.valorUnit)}</div>
+        <div id="faixabadge_${idx}">${faixaBadgeHtml(it.produtoId, it.valorUnit, idx)}</div>
       </td>
       <td>${brl(it.qtde*it.valorUnit)}</td>
       <td><button class="link-btn" onclick="removerItem(${idx})">Remover</button></td>
@@ -1569,7 +1610,17 @@ function renderItens(){
 function updateFaixaBadge(idx, valor){
   const it = orcamentoAtual.itens[idx];
   const el = document.getElementById('faixabadge_'+idx);
-  if(el) el.innerHTML = faixaBadgeHtml(it.produtoId, valor);
+  if(el) el.innerHTML = faixaBadgeHtml(it.produtoId, valor, idx);
+}
+function aplicarPrecoFaixa(idx, faixaKey, preco){
+  orcamentoAtual.itens[idx].valorUnit = preco;
+  renderItens();
+  recalcTotais();
+}
+function restaurarPrecoOriginal(idx, tabelaKey, preco){
+  orcamentoAtual.itens[idx].valorUnit = preco;
+  renderItens();
+  recalcTotais();
 }
 function alterarItem(idx, campo, valor){
   orcamentoAtual.itens[idx][campo] = toNum(valor);
