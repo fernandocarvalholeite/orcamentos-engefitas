@@ -758,11 +758,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             <div class="line total"><span>Total Geral</span><span id="tot_geral">R$ 0,00</span></div>
           </div>
 
-          <div class="flexend">
+          <div class="flexend" style="flex-wrap:wrap;gap:8px;">
             <button class="btn" onclick="salvarOrcamento(false)">Salvar rascunho</button>
             <button class="btn btn-primary" onclick="salvarOrcamento(true)">Salvar</button>
             <button class="btn btn-amber" onclick="gerarPDF()">Gerar PDF para Engefitas</button>
             <button class="btn" style="background:#1a6b3c;color:#fff;border-color:#1a6b3c;" onclick="abrirOrcCliente()">📋 Proposta para Cliente</button>
+            <button class="btn" style="background:#1565c0;color:#fff;border-color:#1565c0;" onclick="enviarEmailEngefitas()" title="Abrir e-mail para Engefitas com dados do orçamento">✉️ E-mail Engefitas</button>
+            <button class="btn" style="background:#25d366;color:#fff;border-color:#25d366;" onclick="copiarWhatsAppEngefitas()" title="Copiar resumo para colar no grupo do WhatsApp">📋 Copiar p/ WhatsApp</button>
           </div>
         </div>
       </section>
@@ -2841,6 +2843,56 @@ function salvarPainelEngefitas(id){
 function gerarPDF(){
   const o = coletarOrcamentoDoForm();
   gerarPDFObjeto(o);
+}
+
+function _resumoOrcamento(){
+  const o = coletarOrcamentoDoForm();
+  const itens = (o.itens||[]).filter(i=>i.cod&&i.qty>0);
+  const total = itens.reduce((s,i)=>s+(i.valorUnit||0)*i.qty,0);
+  const brl = v => 'R$ ' + v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  let linhasItens = itens.map((i,idx)=>`  ${idx+1}. ${i.descricao||i.cod} — Qtd: ${i.qty} × ${brl(i.valorUnit||0)} = ${brl((i.valorUnit||0)*i.qty)}`).join('\n');
+  return {o, itens, total, brl, linhasItens};
+}
+
+function enviarEmailEngefitas(){
+  const {o, itens, total, brl, linhasItens} = _resumoOrcamento();
+  if(!itens.length){ alert('Adicione pelo menos um item antes de enviar.'); return; }
+  const assunto = encodeURIComponent(`Pedido ${o.numero||''} — ${o.cliente||''}`);
+  const corpo = encodeURIComponent(
+    `Olá Gustavo,\n\n` +
+    `Segue orçamento para análise e geração do pedido:\n\n` +
+    `Orçamento N°: ${o.numero||''}\n` +
+    `Data: ${o.data||''}\n` +
+    `Cliente: ${o.cliente||''}\n` +
+    `CNPJ: ${o.cnpj||''}\n` +
+    `UF: ${o.uf||''}\n` +
+    `Condição de Pagamento: ${o.condPagto||''}\n\n` +
+    `ITENS:\n${linhasItens}\n\n` +
+    `TOTAL: ${brl(total)}\n\n` +
+    `Observações: ${o.obs||'—'}\n\n` +
+    `Att,\nFernando — FC Consultoria e Representação\nWhatsApp: (66) 9 9986-7984`
+  );
+  window.open(`mailto:gustavo@engefitas.com.br?subject=${assunto}&body=${corpo}`, '_blank');
+}
+
+function copiarWhatsAppEngefitas(){
+  const {o, itens, total, brl, linhasItens} = _resumoOrcamento();
+  if(!itens.length){ alert('Adicione pelo menos um item antes de copiar.'); return; }
+  const texto =
+    `📦 *PEDIDO ${o.numero||''}*\n` +
+    `📅 Data: ${o.data||''}\n` +
+    `🏢 Cliente: ${o.cliente||''}\n` +
+    `📋 CNPJ: ${o.cnpj||''} | UF: ${o.uf||''}\n` +
+    `💳 Pagamento: ${o.condPagto||''}\n\n` +
+    `*ITENS:*\n${linhasItens}\n\n` +
+    `💰 *TOTAL: ${brl(total)}*\n\n` +
+    `Obs: ${o.obs||'—'}\n\n` +
+    `— Fernando | FC Consultoria`;
+  navigator.clipboard.writeText(texto).then(()=>{
+    alert('✅ Resumo copiado!\n\nAgora cole no grupo do WhatsApp da Engefitas.');
+  }).catch(()=>{
+    alert('Não foi possível copiar automaticamente. Tente novamente.');
+  });
 }
 function gerarPDFDe(id){
   const o = loadOrcamentos().find(x=>x.id===id);
