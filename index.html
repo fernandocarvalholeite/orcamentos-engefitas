@@ -677,7 +677,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                 <button type="button" class="btn btn-sm" id="btnBuscarCnpj" onclick="buscarCNPJ()" title="Buscar dados do CNPJ automaticamente">Buscar</button>
                 <button type="button" onclick="consultarCNPJ()" title="Consultar CNPJ na Receita Federal"
                   style="padding:6px 10px;background:#1a3a5c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;">
-                  🔍 Consultar
+                  🔍 Receita
+                </button>
+                <button type="button" onclick="consultarSerasa()" title="Consultar negativação na Serasa"
+                  style="padding:6px 10px;background:#c62828;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;">
+                  ⚠️ Serasa
                 </button>
               </div>
               <div class="hint" id="cnpjStatus"></div>
@@ -2435,6 +2439,15 @@ function consultarCNPJ(){
   }
   const url = `https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp?cnpj=${cnpj}`;
   window.open(url, '_blank');
+}
+function consultarSerasa(){
+  const cnpj = (document.getElementById('c_cnpj').value || '').replace(/\D/g,'');
+  if(cnpj.length !== 14){
+    alert('Digite um CNPJ válido com 14 dígitos antes de consultar.');
+    return;
+  }
+  // Abre Serasa com CNPJ pré-preenchido para consulta manual de negativação
+  window.open(`https://www.serasaexperian.com.br/consulta-cnpj/?documento=${cnpj}`, '_blank');
 }
 function atualizarBadgeCNPJ(){
   const v = document.getElementById('c_statusCNPJ').value;
