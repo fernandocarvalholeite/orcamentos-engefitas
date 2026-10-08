@@ -694,6 +694,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             <div class="field"><label>Telefone / WhatsApp *</label><input id="c_telefone"></div>
           </div>
           <div id="freteDica" class="alert alert-info" style="display:none;margin-top:12px;"></div>
+          <div style="margin:12px 0 0 0;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" id="f_semIE" onchange="recalcTotais()" style="width:16px;height:16px;accent-color:#c62828;">
+              <span><strong style="color:#c62828;">+14% Sem Inscrição Estadual</strong> — cliente não possui IE (ICMS/ST)</span>
+            </label>
+          </div>
         </div>
 
         <div class="panel">
@@ -980,6 +986,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                 <option>À Vista</option><option>Pix</option>
               </select>
             </div>
+          </div>
+          <div style="margin:8px 0 4px 0;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" id="oc_semIE" onchange="ocRecalc()" style="width:16px;height:16px;accent-color:#c62828;">
+              <span><strong style="color:#c62828;">+14% Sem Inscrição Estadual</strong></span>
+            </label>
           </div>
           <h3 style="margin-top:16px;">Dados do Cliente</h3>
           <div class="formgrid">
@@ -1657,7 +1669,9 @@ function ocCalcFrete(){
   if(!uf){ dica.style.display='none'; return; }
   const f = FRETES.find(x=>x.uf===uf);
   if(!f){ dica.style.display='none'; return; }
-  const subtotal = ocItens.reduce((s,it)=>s+it.qtde*it.valorUnit,0);
+  const ocSemIE = document.getElementById('oc_semIE') && document.getElementById('oc_semIE').checked;
+  const ocFatorIE = ocSemIE ? 1.14 : 1.0;
+  const subtotal = ocItens.reduce((s,it)=>s+it.qtde*it.valorUnit*ocFatorIE,0);
   const abaixoCIF = subtotal < f.min;
   const freteCalc = 100 + subtotal * 0.04;
   const faltaCIF = f.min - subtotal;
@@ -1684,7 +1698,9 @@ function ocCalcFrete(){
 }
 function ocAplicarTipoFrete(){
   const tipo = document.getElementById('oc_tipo_frete').value;
-  const subtotal = ocItens.reduce((s,it)=>s+it.qtde*it.valorUnit,0);
+  const ocSemIE = document.getElementById('oc_semIE') && document.getElementById('oc_semIE').checked;
+  const ocFatorIE = ocSemIE ? 1.14 : 1.0;
+  const subtotal = ocItens.reduce((s,it)=>s+it.qtde*it.valorUnit*ocFatorIE,0);
   if(tipo==='fob_calc'){
     document.getElementById('oc_frete').value = (100 + subtotal*0.04).toFixed(2);
     document.getElementById('oc_transportadora').value = 'A COMBINAR (FOB)';
@@ -1729,6 +1745,9 @@ function renderOrcCliente(){
   if(d.obs) document.getElementById('oc_obs').value = d.obs;
   if(d.uf){ document.getElementById('oc_uf').value = d.uf; ocCalcFrete(); }
   if(d.tipoFrete) document.getElementById('oc_tipo_frete').value = d.tipoFrete;
+  // semIE: when baked into valorUnit via abrirOrcCliente(), prices already include 14%, so oc_semIE starts unchecked
+  const ocSemIEChk = document.getElementById('oc_semIE');
+  if(ocSemIEChk) ocSemIEChk.checked = false;
   ocItens = d.itens || [];
   // Salvar automaticamente ao digitar
   document.querySelectorAll('#view-orc-cliente input, #view-orc-cliente select').forEach(el=>{
@@ -1740,6 +1759,8 @@ function renderOrcCliente(){
 }
 function abrirOrcCliente(){
   // Copia dados do formulário Engefitas para o Orçamento Cliente
+  const semIE = document.getElementById('f_semIE') && document.getElementById('f_semIE').checked;
+  const fatorIE = semIE ? 1.14 : 1.0;
   const c = {
     razao: document.getElementById('c_razao').value,
     cnpj:  document.getElementById('c_cnpj').value,
@@ -1754,7 +1775,7 @@ function abrirOrcCliente(){
     descricao: it.descricao || '',
     unidade: it.unidade || 'UN',
     qtde: it.qtde,
-    valorUnit: it.valorUnit
+    valorUnit: it.valorUnit * fatorIE
   }));
   const freteVal = document.getElementById('f_frete').value || '0';
   const uf = c.uf;
@@ -1781,6 +1802,7 @@ function abrirOrcCliente(){
     tipoFrete: tipoFrete,
     transportadora: 'A COMBINAR',
     obs: '',
+    semIE: semIE,
     itens: itensEngefitas
   };
   localStorage.setItem(LS_OC, JSON.stringify(ocData));
@@ -1841,7 +1863,9 @@ function ocRenderItens(){
     </tr>`).join('');
 }
 function ocRecalc(){
-  const subtotal = ocItens.reduce((s,it)=>s+it.qtde*it.valorUnit,0);
+  const ocSemIE = document.getElementById('oc_semIE') && document.getElementById('oc_semIE').checked;
+  const ocFatorIE = ocSemIE ? 1.14 : 1.0;
+  const subtotal = ocItens.reduce((s,it)=>s+it.qtde*it.valorUnit*ocFatorIE,0);
   const frete = parseFloat(document.getElementById('oc_frete').value)||0;
   const geral = subtotal + frete;
   document.getElementById('oc_tot_itens').textContent = ocItens.length;
@@ -1859,7 +1883,9 @@ function ocGerarPDF(){
   ocSave();
   const cfg = loadConfig();
   const d = ocLoad();
-  const subtotal = ocItens.reduce((s,it)=>s+it.qtde*it.valorUnit,0);
+  const ocSemIE = document.getElementById('oc_semIE') && document.getElementById('oc_semIE').checked;
+  const ocFatorIE = ocSemIE ? 1.14 : 1.0;
+  const subtotal = ocItens.reduce((s,it)=>s+it.qtde*it.valorUnit*ocFatorIE,0);
   const frete = parseFloat(d.frete)||0;
   const geral = subtotal + frete;
   const totalQtde = ocItens.reduce((s,it)=>s+it.qtde,0);
@@ -1895,9 +1921,12 @@ function ocGerarPDF(){
       <td>${it.descricao}</td>
       <td style="text-align:center;">${it.qtde.toFixed(2).replace('.',',')}</td>
       <td style="text-align:center;">${it.unidade}</td>
-      <td style="text-align:right;">R$ ${it.valorUnit.toFixed(2).replace('.',',')}</td>
-      <td style="text-align:right;font-weight:600;">R$ ${(it.qtde*it.valorUnit).toFixed(2).replace('.',',')}</td>
+      <td style="text-align:right;">R$ ${(it.valorUnit*ocFatorIE).toFixed(2).replace('.',',')}</td>
+      <td style="text-align:right;font-weight:600;">R$ ${(it.qtde*it.valorUnit*ocFatorIE).toFixed(2).replace('.',',')}</td>
     </tr>`).join('');
+  const avisoSemIEPDF = ocSemIE ? `<div style="background:#fff3cd;border:1px solid #ffc107;padding:8px;margin:8px 0;font-size:12px;border-radius:4px;">
+    ⚠️ Preços acrescidos de 14% referente a ICMS/ST — cliente sem Inscrição Estadual.
+  </div>` : '';
   const html = `
   <div id="oc_pdf_doc">
     <!-- CABEÇALHO -->
@@ -1954,6 +1983,7 @@ function ocGerarPDF(){
       </div>
     </div>
     ${avisoFretePDF}
+    ${avisoSemIEPDF}
     <div class="oc-rodape">
       Orçamento gerado por FC Consultoria e Representação — Representante Engefitas / ProGlaze no Mato Grosso<br>
       ${cfg.email||'FCconsultoria25@hotmail.com'} | ${cfg.telefone||'(66) 9 9986-7984'} | Validade: 3 dias
@@ -2158,6 +2188,8 @@ function renderItens(){
     tbody.innerHTML = `<tr><td colspan="8" class="empty">Nenhum item adicionado. Selecione um produto acima.</td></tr>`;
     return;
   }
+  const semIE = document.getElementById('f_semIE') && document.getElementById('f_semIE').checked;
+  const fatorIE = semIE ? 1.14 : 1.0;
   tbody.innerHTML = orcamentoAtual.itens.map((it,idx)=>{
     const prod = PRODUTOS.find(x=>x.id===it.produtoId);
     const cx = prod ? (prod.qtdeCaixa||0) : 0;
@@ -2189,7 +2221,7 @@ function renderItens(){
           id="priceinput_${idx}">
         <div id="faixabadge_${idx}">${faixaBadgeHtml(it.produtoId, it.valorUnit, idx)}</div>
       </td>
-      <td>${brl(it.qtde*it.valorUnit)}</td>
+      <td>${brl(it.qtde*it.valorUnit*fatorIE)}</td>
       <td><button class="link-btn" onclick="removerItem(${idx})">Remover</button></td>
     </tr>`;
   }).join('');
@@ -2234,7 +2266,9 @@ function recalcAllItemPrices(){
   recalcTotais();
 }
 function recalcTotais(){
-  const subtotal = orcamentoAtual.itens.reduce((s,it)=> s + (it.qtde*it.valorUnit), 0);
+  const semIE = document.getElementById('f_semIE') && document.getElementById('f_semIE').checked;
+  const fatorIE = semIE ? 1.14 : 1.0;
+  const subtotal = orcamentoAtual.itens.reduce((s,it)=> s + (it.qtde*it.valorUnit*fatorIE), 0);
   const frete = toNum(document.getElementById('f_frete').value);
   const geral = subtotal + frete;
   document.getElementById('tot_subtotal').textContent = brl(subtotal);
@@ -2257,7 +2291,7 @@ function recalcTotais(){
       }
     }
     const pct = faixaDetectada ? pctMap[faixaDetectada] : pctMap['f1'];
-    const totalItem = it.qtde * it.valorUnit;
+    const totalItem = it.qtde * it.valorUnit * fatorIE;
     const comissaoItem = totalItem * pct / 100;
     comissaoTotal += comissaoItem;
     detalhes.push(`${it.codigo}: ${pct}% = ${brl(comissaoItem)}`);
@@ -2280,7 +2314,9 @@ function atualizarDicaFrete(){
   if(!uf){ el.style.display='none'; return; }
   const f = FRETES.find(x=>x.uf===uf);
   if(!f){ el.style.display='none'; return; }
-  const subtotal = orcamentoAtual.itens.reduce((s,it)=>s+it.qtde*it.valorUnit,0);
+  const semIE = document.getElementById('f_semIE') && document.getElementById('f_semIE').checked;
+  const fatorIE = semIE ? 1.14 : 1.0;
+  const subtotal = orcamentoAtual.itens.reduce((s,it)=>s+it.qtde*it.valorUnit*fatorIE,0);
   const faltaCIF = f.min - subtotal;
   const freteExtra = subtotal >= f.min
     ? null
