@@ -2000,10 +2000,8 @@ function ocGerarPDF(){
   /* Cabeçalho */
   .hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   .hd-left { display: flex; align-items: flex-start; gap: 12px; }
-  .logo-box { width: 72px; height: 72px; background: #f5a623; border-radius: 4px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font-weight: 900; font-size: 22px; color: #fff; line-height: 1.1; flex-shrink: 0; }
-  .logo-sub { font-size: 9px; font-weight: 600; }
+  .logo-box { width: 100px; flex-shrink: 0; }
+  .logo-box img { width: 100px; height: auto; display: block; }
   .empresa { line-height: 1.55; }
   .empresa strong { font-size: 13px; }
   .empresa-sub { font-size: 10.5px; color: #444; }
@@ -2039,12 +2037,14 @@ function ocGerarPDF(){
   <!-- CABEÇALHO -->
   <div class="hd">
     <div class="hd-left">
-      <div class="logo-box">FC<div class="logo-sub">Consultoria</div></div>
+      <div class="logo-box">
+        <img src="https://static.wixstatic.com/media/071dfb_188bab80f4084b70832121d39beca4ac~mv2.png/v1/fill/w_256,h_116,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo_site.png" alt="Engefitas">
+      </div>
       <div class="empresa">
-        <strong>FC CONSULTORIA E REPRESENTAÇÃO</strong><br>
-        <span class="empresa-sub">Representante Engefitas / ProGlaze — Mato Grosso</span><br>
-        <span class="empresa-sub">${cfg.cidade||'Sinop - MT'}</span><br>
-        <span class="empresa-sub">Tel: ${cfg.telefone||'66999867984'} &nbsp;|&nbsp; ${cfg.email||'FCconsultoria25@hotmail.com'}</span>
+        <strong>ENGEFITAS INDUSTRIA COMERCIO E IMPORTAÇÃO DE FITAS</strong><br>
+        <span class="empresa-sub">Av. Pres. Getúlio Vargas, 10755 — Estância Grande, Viamão - RS, 94423-005</span><br>
+        <span class="empresa-sub">Fone: (51) 3024.6060 &nbsp;|&nbsp; Site: www.engefitas.com.br</span><br>
+        <span class="empresa-sub">E-mail: engefitas@engefitas.com.br</span>
       </div>
     </div>
     <div class="oc-box">
@@ -2125,8 +2125,8 @@ function ocGerarPDF(){
   <hr class="sep">
 
   <div class="rodape">
-    Orçamento gerado por FC Consultoria e Representação — Representante Engefitas / ProGlaze no Mato Grosso<br>
-    ${cfg.email||'FCconsultoria25@hotmail.com'} | ${cfg.telefone||'(66) 9 9986-7984'}
+    <strong>Representante Comercial: FC Consultoria e Representação</strong> — Sinop/MT — Mato Grosso<br>
+    ${cfg.telefone||'(66) 9 9986-7984'} &nbsp;|&nbsp; ${cfg.email||'FCconsultoria25@hotmail.com'}
   </div>
 
 </div>
