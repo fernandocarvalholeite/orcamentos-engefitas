@@ -2576,8 +2576,16 @@ function consultarSerasa(){
   // Copia CNPJ formatado para a área de transferência e abre a Serasa
   const cnpjFmt = cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5');
   try { navigator.clipboard.writeText(cnpjFmt); } catch(e){}
-  alert('CNPJ ' + cnpjFmt + ' copiado! Cole no campo de busca da Serasa que vai abrir.');
-  window.open('https://www.serasaexperian.com.br/consulta-cnpj/', '_blank');
+  const destino = confirm(
+    'CNPJ ' + cnpjFmt + ' copiado!\n\n' +
+    'Onde deseja consultar negativação?\n\n' +
+    'OK → SPC Brasil (gratuito)\nCancelar → Boa Vista SCPC (gratuito)'
+  );
+  if(destino){
+    window.open('https://www.spcbrasil.org.br/consumidor/consulta-cpf-cnpj', '_blank');
+  } else {
+    window.open('https://www.boavistaservicos.com.br/consulta-cpf-cnpj/', '_blank');
+  }
 }
 function atualizarBadgeCNPJ(){
   const v = document.getElementById('c_statusCNPJ').value;
