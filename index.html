@@ -772,12 +772,19 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         <div class="panel">
           <div class="searchbar" style="flex-wrap:wrap;gap:8px;">
             <input id="listSearch" placeholder="Buscar por cliente ou número..." oninput="renderOrcamentosList()" style="flex:2;min-width:200px;">
-            <select id="listStatusFilter" onchange="renderOrcamentosList()" style="min-width:170px;">
-              <option value="">Todos os status</option>
-              <option value="rascunho">Rascunho</option>
-              <option value="enviado">Enviado à Engefitas</option>
-              <option value="aprovado">Aprovado</option>
-              <option value="recusado">Recusado</option>
+            <select id="listStatusFC" onchange="renderOrcamentosList()" style="min-width:160px;">
+              <option value="">Status FC (todos)</option>
+              <option value="fc_rascunho">Rascunho</option>
+              <option value="fc_enviado">Enviado ao Cliente</option>
+              <option value="fc_aprovado">✅ Aprovado pelo Cliente</option>
+              <option value="fc_recusado">❌ Recusado pelo Cliente</option>
+            </select>
+            <select id="listStatusEng" onchange="renderOrcamentosList()" style="min-width:160px;">
+              <option value="">Status Eng. (todos)</option>
+              <option value="eng_nao_enviado">Não Enviado</option>
+              <option value="eng_enviado">Enviado à Engefitas</option>
+              <option value="eng_aprovado">✅ Aprovado pela Engefitas</option>
+              <option value="eng_recusado">❌ Recusado</option>
             </select>
             <div style="display:flex;align-items:center;gap:6px;font-size:13px;">
               <label style="color:var(--muted);white-space:nowrap;">De:</label>
@@ -789,7 +796,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Nº</th><th>Data</th><th>Cliente</th><th>UF</th><th>Total</th><th>Status</th><th>Ações</th></tr></thead>
+              <thead><tr><th>Nº</th><th>Data</th><th>Cliente</th><th>UF</th><th>Total</th><th>Status FC</th><th>Status Eng.</th><th>Ações</th></tr></thead>
               <tbody id="orcamentosListBody"></tbody>
             </table>
           </div>
@@ -909,12 +916,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           <div class="formgrid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));">
             <div class="field"><label>Data inicial</label><input type="date" id="com_de"></div>
             <div class="field"><label>Data final</label><input type="date" id="com_ate"></div>
-            <div class="field"><label>Status</label>
+            <div class="field"><label>Status Engefitas</label>
               <select id="com_status">
                 <option value="">Todos</option>
-                <option value="aprovado">Aprovado</option>
-                <option value="enviado">Enviado à Engefitas</option>
-                <option value="rascunho">Rascunho</option>
+                <option value="eng_aprovado" selected>✅ Aprovado pela Engefitas</option>
+                <option value="eng_enviado">Enviado à Engefitas</option>
+                <option value="eng_nao_enviado">Não Enviado</option>
+                <option value="eng_recusado">❌ Recusado</option>
               </select>
             </div>
           </div>
@@ -1464,9 +1472,9 @@ async function checkAccessOnLoad(){
 
 /* ============ DASHBOARD ============ */
 function renderDashboard(){
-  const orcs = loadOrcamentos();
+  const orcs = loadOrcamentos().map(migrateOrcamento);
   const total = orcs.length;
-  const abertos = orcs.filter(o=>o.status==='rascunho'||o.status==='enviado');
+  const abertos = orcs.filter(o=>o.statusFC==='fc_rascunho'||o.statusFC==='fc_enviado');
   const valorAberto = abertos.reduce((s,o)=>s+(o.totalGeral||0),0);
   const now = new Date();
   const doMes = orcs.filter(o=>{ const d=new Date(o.data); return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear(); });
@@ -1493,12 +1501,46 @@ function renderDashboard(){
         <td>${o.cliente?.razao||'-'}</td>
         <td>${fmtDateBR(o.data)}</td>
         <td>${brl(o.totalGeral)}</td>
-        <td><span class="badge badge-${o.status}">${statusLabel(o.status)}</span></td>
+        <td>${statusFCBadge(o.statusFC)}</td>
         <td><button class="link-btn" onclick="abrirOrcamento('${o.id}')">Abrir</button></td>
       </tr>`).join('');
   }
 }
 function statusLabel(s){ return {rascunho:'Rascunho', enviado:'Enviado à Engefitas', aprovado:'Aprovado', recusado:'Recusado'}[s] || s; }
+function statusFCLabel(s){ return {fc_rascunho:'Rascunho', fc_enviado:'Enviado ao Cliente', fc_aprovado:'✅ Aprovado', fc_recusado:'❌ Recusado'}[s] || 'Rascunho'; }
+function statusEngLabel(s){ return {eng_nao_enviado:'Não Enviado', eng_enviado:'Enviado', eng_aprovado:'✅ Aprovado', eng_recusado:'❌ Recusado'}[s] || 'Não Enviado'; }
+function statusFCBadge(s){
+  const map = {
+    fc_rascunho: {bg:'#f0f0f0',color:'#555',txt:'Rascunho'},
+    fc_enviado:  {bg:'#e3f0fc',color:'#1565c0',txt:'📤 Env. Cliente'},
+    fc_aprovado: {bg:'#e8f5e9',color:'#1a6b3c',txt:'✅ FC Aprov.'},
+    fc_recusado: {bg:'#fdecea',color:'#b71c1c',txt:'❌ FC Recus.'}
+  };
+  const m = map[s] || map['fc_rascunho'];
+  return `<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:${m.bg};color:${m.color};font-weight:600;white-space:nowrap;">${m.txt}</span>`;
+}
+function statusEngBadge(s){
+  const map = {
+    eng_nao_enviado:{bg:'#f5f5f5',color:'#777',txt:'Eng. Não Env.'},
+    eng_enviado:    {bg:'#fff3e0',color:'#e65100',txt:'📤 Eng. Env.'},
+    eng_aprovado:   {bg:'#e8f5e9',color:'#1a6b3c',txt:'✅ Eng. Aprov.'},
+    eng_recusado:   {bg:'#fdecea',color:'#b71c1c',txt:'❌ Eng. Recus.'}
+  };
+  const m = map[s] || map['eng_nao_enviado'];
+  return `<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:${m.bg};color:${m.color};font-weight:600;white-space:nowrap;">${m.txt}</span>`;
+}
+function migrateOrcamento(o){
+  if(!o.statusFC){
+    if(o.status==='aprovado') o.statusFC='fc_aprovado';
+    else if(o.status==='recusado') o.statusFC='fc_recusado';
+    else if(o.status==='enviado'){ o.statusFC='fc_enviado'; o.statusEngefitas='eng_enviado'; }
+    else o.statusFC='fc_rascunho';
+  }
+  if(!o.statusEngefitas) o.statusEngefitas='eng_nao_enviado';
+  if(!o.numEngefitas) o.numEngefitas='';
+  if(!o.obsEngefitas) o.obsEngefitas='';
+  return o;
+}
 
 /* ============ PRODUTOS ============ */
 function categoriasUnicas(){ return [...new Set(PRODUTOS.map(p=>p.categoria))].sort(); }
@@ -2644,6 +2686,10 @@ function duplicarOrcamento(id){
   copia.numero = nextNumero();
   copia.data = todayISO();
   copia.status = 'rascunho';
+  copia.statusFC = 'fc_rascunho';
+  copia.statusEngefitas = 'eng_nao_enviado';
+  copia.numEngefitas = '';
+  copia.obsEngefitas = '';
   copia.criadoEm = Date.now();
   let list = loadOrcamentos();
   list.push(copia);
@@ -2663,6 +2709,16 @@ function mudarStatusOrcamento(id, status){
   const idx = list.findIndex(o=>o.id===id);
   if(idx>=0){ list[idx].status = status; saveOrcamentos(list); renderOrcamentosList(); }
 }
+function mudarStatusFC(id, val){
+  let list = loadOrcamentos();
+  const idx = list.findIndex(o=>o.id===id);
+  if(idx>=0){ list[idx].statusFC = val; saveOrcamentos(list); }
+}
+function mudarStatusEng(id, val){
+  let list = loadOrcamentos();
+  const idx = list.findIndex(o=>o.id===id);
+  if(idx>=0){ list[idx].statusEngefitas = val; saveOrcamentos(list); }
+}
 
 /* ============ LISTA ORÇAMENTOS ============ */
 function limparFiltroData(){
@@ -2672,21 +2728,24 @@ function limparFiltroData(){
 }
 function renderOrcamentosList(){
   const q = (document.getElementById('listSearch').value||'').toLowerCase();
-  const statusF = document.getElementById('listStatusFilter').value;
-  const dataDe = document.getElementById('listDataDe').value; // 'YYYY-MM-DD' ou ''
+  const statusFC_F = document.getElementById('listStatusFC').value;
+  const statusEng_F = document.getElementById('listStatusEng').value;
+  const dataDe = document.getElementById('listDataDe').value;
   const dataAte = document.getElementById('listDataAte').value;
-  let list = loadOrcamentos().sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
+  let list = loadOrcamentos().map(migrateOrcamento).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
   list = list.filter(o=>
-    (!statusF || o.status===statusF) &&
+    (!statusFC_F || o.statusFC===statusFC_F) &&
+    (!statusEng_F || o.statusEngefitas===statusEng_F) &&
     (!q || o.numero.toLowerCase().includes(q) || (o.cliente?.razao||'').toLowerCase().includes(q)) &&
     (!dataDe || (o.data && o.data >= dataDe)) &&
     (!dataAte || (o.data && o.data <= dataAte))
   );
   const tbody = document.getElementById('orcamentosListBody');
-  if(list.length===0){ tbody.innerHTML = `<tr><td colspan="7" class="empty">Nenhum orçamento encontrado.</td></tr>`; return; }
-  tbody.innerHTML = list.map(o=>{
+  if(list.length===0){ tbody.innerHTML = `<tr><td colspan="9" class="empty">Nenhum orçamento encontrado.</td></tr>`; return; }
+  tbody.innerHTML = list.map((o,i)=>{
     const badgeCNPJ = o.cliente?.statusCNPJ === 'negativado' ? '<span style="background:#c62828;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px;">❌ Neg.</span>' :
                       o.cliente?.statusCNPJ === 'pendente' ? '<span style="background:#e65100;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px;">⚠️</span>' : '';
+    const numEng = o.numEngefitas ? `<br><span style="font-size:10px;color:#888;">Nº Eng: ${o.numEngefitas}</span>` : '';
     return `
     <tr>
       <td>${o.numero}</td>
@@ -2694,19 +2753,85 @@ function renderOrcamentosList(){
       <td>${o.cliente?.razao||'-'}${badgeCNPJ}</td>
       <td>${o.cliente?.uf||'-'}</td>
       <td>${brl(o.totalGeral)}</td>
-      <td>
-        <select onchange="mudarStatusOrcamento('${o.id}', this.value)">
-          ${['rascunho','enviado','aprovado','recusado'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}
-        </select>
-      </td>
+      <td>${statusFCBadge(o.statusFC)}</td>
+      <td>${statusEngBadge(o.statusEngefitas)}${numEng}</td>
       <td>
         <button class="link-btn" onclick="abrirOrcamento('${o.id}')">Editar</button> ·
         <button class="link-btn" onclick="duplicarOrcamento('${o.id}')">Duplicar</button> ·
         <button class="link-btn" onclick="gerarPDFDe('${o.id}')">PDF</button> ·
+        <button class="link-btn" style="color:var(--navy);font-weight:600;" onclick="abrirPainelEngefitas('${o.id}')">Engefitas</button> ·
         <button class="link-btn" onclick="excluirOrcamento('${o.id}')">Excluir</button>
+      </td>
+    </tr>
+    <tr id="painel_eng_${o.id}" style="display:none;">
+      <td colspan="9" style="padding:0;">
+        <div style="background:#f8fbff;border:1px solid #c9dff7;border-radius:8px;padding:16px;margin:4px 8px 8px;">
+          <strong style="font-size:13px;color:var(--navy);">⚙️ Detalhes Engefitas — Orçamento ${o.numero}</strong>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-top:12px;flex-wrap:wrap;">
+            <div>
+              <label style="font-size:11px;color:#555;display:block;margin-bottom:4px;">Status FC</label>
+              <select id="peng_statusFC_${o.id}" style="width:100%;font-size:12px;">
+                <option value="fc_rascunho" ${o.statusFC==='fc_rascunho'?'selected':''}>Rascunho</option>
+                <option value="fc_enviado" ${o.statusFC==='fc_enviado'?'selected':''}>Enviado ao Cliente</option>
+                <option value="fc_aprovado" ${o.statusFC==='fc_aprovado'?'selected':''}>✅ Aprovado pelo Cliente</option>
+                <option value="fc_recusado" ${o.statusFC==='fc_recusado'?'selected':''}>❌ Recusado pelo Cliente</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;color:#555;display:block;margin-bottom:4px;">Status Engefitas</label>
+              <select id="peng_statusEng_${o.id}" style="width:100%;font-size:12px;">
+                <option value="eng_nao_enviado" ${o.statusEngefitas==='eng_nao_enviado'?'selected':''}>Não Enviado</option>
+                <option value="eng_enviado" ${o.statusEngefitas==='eng_enviado'?'selected':''}>Enviado à Engefitas</option>
+                <option value="eng_aprovado" ${o.statusEngefitas==='eng_aprovado'?'selected':''}>✅ Aprovado pela Engefitas</option>
+                <option value="eng_recusado" ${o.statusEngefitas==='eng_recusado'?'selected':''}>❌ Recusado</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px;color:#555;display:block;margin-bottom:4px;">Nº Pedido Engefitas</label>
+              <input id="peng_num_${o.id}" value="${o.numEngefitas||''}" placeholder="Ex: 98792" style="width:100%;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="font-size:11px;color:#555;display:block;margin-bottom:4px;">Obs. Engefitas</label>
+              <textarea id="peng_obs_${o.id}" rows="2" placeholder="Observações..." style="width:100%;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;box-sizing:border-box;resize:vertical;">${o.obsEngefitas||''}</textarea>
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;">
+            <button class="btn btn-primary" style="font-size:12px;padding:6px 16px;" onclick="salvarPainelEngefitas('${o.id}')">💾 Salvar</button>
+            <button class="btn" style="font-size:12px;padding:6px 16px;" onclick="fecharPainelEngefitas('${o.id}')">Fechar</button>
+          </div>
+        </div>
       </td>
     </tr>`;
   }).join('');
+}
+function abrirPainelEngefitas(id){
+  // Fechar outros painéis abertos
+  document.querySelectorAll('[id^="painel_eng_"]').forEach(el=>{
+    if(el.id !== 'painel_eng_'+id) el.style.display='none';
+  });
+  const el = document.getElementById('painel_eng_'+id);
+  if(el) el.style.display = el.style.display==='none' ? 'table-row' : 'none';
+}
+function fecharPainelEngefitas(id){
+  const el = document.getElementById('painel_eng_'+id);
+  if(el) el.style.display='none';
+}
+function salvarPainelEngefitas(id){
+  const statusFC = document.getElementById('peng_statusFC_'+id)?.value;
+  const statusEngefitas = document.getElementById('peng_statusEng_'+id)?.value;
+  const numEngefitas = document.getElementById('peng_num_'+id)?.value||'';
+  const obsEngefitas = document.getElementById('peng_obs_'+id)?.value||'';
+  let list = loadOrcamentos();
+  const idx = list.findIndex(o=>o.id===id);
+  if(idx>=0){
+    list[idx].statusFC = statusFC;
+    list[idx].statusEngefitas = statusEngefitas;
+    list[idx].numEngefitas = numEngefitas;
+    list[idx].obsEngefitas = obsEngefitas;
+    saveOrcamentos(list);
+    renderOrcamentosList();
+    renderDashboard();
+  }
 }
 
 /* ============ PDF ============ */
@@ -2873,10 +2998,11 @@ function renderComissoes(){
     return;
   }
 
-  let orcamentos = loadOrcamentos().filter(o=>{
+  let orcamentos = loadOrcamentos().map(migrateOrcamento).filter(o=>{
     const d = o.data||'';
     const dentroData = (!de || d>=de) && (!ate || d<=ate);
-    const dentroStatus = !statusF || o.status===statusF;
+    // Use new statusEngefitas field; fallback to old status for backward compat
+    const dentroStatus = !statusF || o.statusEngefitas===statusF;
     return dentroData && dentroStatus && (o.itens||[]).length>0;
   }).sort((a,b)=>a.data>b.data?1:-1);
 
@@ -2911,11 +3037,12 @@ function renderComissoes(){
         orcNum: o.numero, orcData: o.data, cliente: o.cliente?.razao||'-',
         codigo: it.codigo, descricao: it.descricao, unidade: it.unidade,
         qtde: it.qtde, valorUnit: it.valorUnit, totalItem, faixa, pct, valorCom,
-        orcId: o.id, _grupo: false
+        orcId: o.id, _grupo: false,
+        numEngefitas: o.numEngefitas||'', statusFC: o.statusFC||'fc_rascunho'
       });
     });
     // linha subtotal por orçamento
-    rows.push({_subtotal:true, orcNum:o.numero, subVendas, subCom, cliente: o.cliente?.razao||'-', orcData:o.data});
+    rows.push({_subtotal:true, orcNum:o.numero, subVendas, subCom, cliente: o.cliente?.razao||'-', orcData:o.data, numEngefitas:o.numEngefitas||'', statusFC:o.statusFC||'fc_rascunho'});
   });
 
   // Render tabela
@@ -2932,9 +3059,11 @@ function renderComissoes(){
       return;
     }
     if(r.orcNum !== lastOrc){
+      const numEngStr = r.numEngefitas ? ` &nbsp;<span style="font-size:10px;font-weight:400;color:#555;">Nº Eng: ${r.numEngefitas}</span>` : '';
       html += `<tr class="com-orcamento-row">
         <td>${r.orcNum}</td><td>${fmtDateBR(r.orcData)}</td>
-        <td colspan="10">${r.cliente}</td>
+        <td colspan="8">${r.cliente}${numEngStr}</td>
+        <td colspan="2">${statusFCBadge(r.statusFC)}</td>
       </tr>`;
       lastOrc = r.orcNum;
     }
