@@ -679,9 +679,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                   style="padding:6px 10px;background:#1a3a5c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;">
                   🔍 Receita
                 </button>
-                <button type="button" onclick="consultarSerasa()" title="Consultar restrições e protestos no CNPJ.biz (gratuito)"
+                <button type="button" onclick="consultarSerasa()" title="Consultar situação cadastral na Receita Federal (gratuito)"
                   style="padding:6px 10px;background:#c62828;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;">
-                  ⚠️ Restrições
+                  🏛️ Situação
                 </button>
               </div>
               <div class="hint" id="cnpjStatus"></div>
@@ -2573,10 +2573,11 @@ function consultarSerasa(){
     alert('Digite um CNPJ válido com 14 dígitos antes de consultar.');
     return;
   }
-  // Abre CNPJ.biz com CNPJ na URL (gratuito, mostra restrições e protestos)
+  // Copia CNPJ e abre Receita Federal com situação cadastral
   const cnpjFmt = cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5');
-  try { navigator.clipboard.writeText(cnpjFmt); } catch(e){}
-  window.open('https://cnpj.biz/' + cnpj, '_blank');
+  try { navigator.clipboard.writeText(cnpj); } catch(e){}
+  alert('CNPJ ' + cnpjFmt + ' copiado!\n\nCole no campo de busca da Receita Federal que vai abrir.');
+  window.open('https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp', '_blank');
 }
 function atualizarBadgeCNPJ(){
   const v = document.getElementById('c_statusCNPJ').value;
