@@ -2241,10 +2241,30 @@ function recalcTotais(){
   document.getElementById('tot_frete').textContent = brl(frete);
   document.getElementById('tot_geral').textContent = brl(geral);
 
-  // comissão interna estimada (não vai pro PDF)
-  const tabela = document.getElementById('f_tabela').value;
-  const pct = {f1:3,f2:4,f3:5,f4:6,f5:7}[tabela];
-  document.getElementById('comissaoInterna').textContent = `Comissão estimada (uso interno, não aparece no PDF): ${pct}% ≈ ${brl(subtotal*pct/100)}`;
+  // comissão interna estimada por item (detecta a faixa real de cada preço)
+  const pctMap = {f1:3,f2:4,f3:5,f4:6,f5:7};
+  let comissaoTotal = 0;
+  let detalhes = [];
+  orcamentoAtual.itens.forEach(it=>{
+    const p = PRODUTOS.find(x=>x.id===it.produtoId);
+    if(!p){ comissaoTotal += 0; return; }
+    // detectar faixa pelo preço atual do item
+    const tiers = ['f1','f2','f3','f4','f5'];
+    let faixaDetectada = null;
+    for(let i = tiers.length-1; i >= 0; i--){
+      if(parseFloat(p[tiers[i]])>0 && it.valorUnit >= parseFloat(p[tiers[i]])-0.005){
+        faixaDetectada = tiers[i]; break;
+      }
+    }
+    const pct = faixaDetectada ? pctMap[faixaDetectada] : pctMap['f1'];
+    const totalItem = it.qtde * it.valorUnit;
+    const comissaoItem = totalItem * pct / 100;
+    comissaoTotal += comissaoItem;
+    detalhes.push(`${it.codigo}: ${pct}% = ${brl(comissaoItem)}`);
+  });
+  const el = document.getElementById('comissaoInterna');
+  el.innerHTML = `<strong>Comissão estimada (uso interno, não aparece no PDF):</strong> ${brl(comissaoTotal)}`
+    + (detalhes.length > 1 ? `<br><span style="font-size:11px;color:#555;">${detalhes.join(' &nbsp;|&nbsp; ')}</span>` : '');
   // Atualizar dica de frete se UF estiver selecionada
   if(document.getElementById('c_uf') && document.getElementById('c_uf').value){
     atualizarDicaFrete();
