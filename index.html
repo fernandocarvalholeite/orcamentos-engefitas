@@ -672,11 +672,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             <div class="field"><label>Cliente / Razão Social *</label><input id="c_razao"></div>
             <div class="field">
               <label>CNPJ *</label>
-              <div style="display:flex;gap:6px;">
-                <input id="c_cnpj" placeholder="00.000.000/0000-00" oninput="maskCNPJ(this)" onblur="buscarCNPJ()" style="flex:1;">
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input id="c_cnpj" placeholder="00.000.000/0001-00" oninput="maskCNPJ(this)" onblur="buscarCNPJ()" style="flex:1;">
                 <button type="button" class="btn btn-sm" id="btnBuscarCnpj" onclick="buscarCNPJ()" title="Buscar dados do CNPJ automaticamente">Buscar</button>
+                <button type="button" onclick="consultarCNPJ()" title="Consultar CNPJ na Receita Federal"
+                  style="padding:6px 10px;background:#1a3a5c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;">
+                  🔍 Consultar
+                </button>
               </div>
               <div class="hint" id="cnpjStatus"></div>
+              <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
+                <label style="font-size:12px;color:#555;white-space:nowrap;">Status CNPJ:</label>
+                <select id="c_statusCNPJ" onchange="atualizarBadgeCNPJ()" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid #ccc;">
+                  <option value="">— não verificado —</option>
+                  <option value="regular">✅ Regular</option>
+                  <option value="pendente">⚠️ Pendente (verificar)</option>
+                  <option value="negativado">❌ Negativado / Irregular</option>
+                </select>
+                <span id="c_statusCNPJ_badge" style="font-size:12px;font-weight:600;"></span>
+              </div>
             </div>
             <div class="field"><label>Inscrição Estadual</label><input id="c_ie"></div>
             <div class="field"><label>Endereço (rua, número) *</label><input id="c_endereco"></div>
@@ -2085,6 +2099,7 @@ function novoOrcamento(){
   document.getElementById('f_condpag_outro_wrap').style.display='none';
   document.getElementById('f_status').value = 'rascunho';
   ['c_razao','c_cnpj','c_ie','c_endereco','c_cep','c_cidade','c_email','c_site','c_contato','c_cargo','c_telefone'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('c_statusCNPJ').value = ''; atualizarBadgeCNPJ();
   document.getElementById('c_uf').value = '';
   document.getElementById('f_tabela').value = 'f1';
   document.getElementById('f_volume').value = '';
@@ -2401,6 +2416,26 @@ async function buscarCNPJ(){
     btn.textContent = originalBtnText;
   }
 }
+function consultarCNPJ(){
+  const cnpj = (document.getElementById('c_cnpj').value || '').replace(/\D/g,'');
+  if(cnpj.length !== 14){
+    alert('Digite um CNPJ válido com 14 dígitos antes de consultar.');
+    return;
+  }
+  const url = `https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp?cnpj=${cnpj}`;
+  window.open(url, '_blank');
+}
+function atualizarBadgeCNPJ(){
+  const v = document.getElementById('c_statusCNPJ').value;
+  const badge = document.getElementById('c_statusCNPJ_badge');
+  const map = {
+    regular: {txt:'✅ Regular', color:'#1a6b3c'},
+    pendente: {txt:'⚠️ Pendente', color:'#e65100'},
+    negativado: {txt:'❌ Negativado', color:'#c62828'}
+  };
+  if(map[v]){ badge.textContent = map[v].txt; badge.style.color = map[v].color; }
+  else { badge.textContent = ''; }
+}
 
 function coletarOrcamentoDoForm(){
   const condpag = document.getElementById('f_condpag').value === 'outro'
@@ -2426,7 +2461,8 @@ function coletarOrcamentoDoForm(){
     site: document.getElementById('c_site').value,
     contato: document.getElementById('c_contato').value,
     cargo: document.getElementById('c_cargo').value,
-    telefone: document.getElementById('c_telefone').value
+    telefone: document.getElementById('c_telefone').value,
+    statusCNPJ: document.getElementById('c_statusCNPJ').value
   };
   orcamentoAtual.volume = document.getElementById('f_volume').value;
   orcamentoAtual.qtdeCaixas = document.getElementById('f_qtdecaixas').value;
@@ -2480,6 +2516,8 @@ function abrirOrcamento(id){
   document.getElementById('c_cargo').value = c.cargo||'';
   document.getElementById('c_telefone').value = c.telefone||'';
   document.getElementById('cnpjStatus').textContent = '';
+  document.getElementById('c_statusCNPJ').value = c.statusCNPJ || '';
+  atualizarBadgeCNPJ();
   document.getElementById('f_volume').value = o.volume||'';
   document.getElementById('f_qtdecaixas').value = o.qtdeCaixas||'';
   document.getElementById('f_frete').value = o.frete||'';
@@ -2537,11 +2575,14 @@ function renderOrcamentosList(){
   );
   const tbody = document.getElementById('orcamentosListBody');
   if(list.length===0){ tbody.innerHTML = `<tr><td colspan="7" class="empty">Nenhum orçamento encontrado.</td></tr>`; return; }
-  tbody.innerHTML = list.map(o=>`
+  tbody.innerHTML = list.map(o=>{
+    const badgeCNPJ = o.cliente?.statusCNPJ === 'negativado' ? '<span style="background:#c62828;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px;">❌ Neg.</span>' :
+                      o.cliente?.statusCNPJ === 'pendente' ? '<span style="background:#e65100;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:4px;">⚠️</span>' : '';
+    return `
     <tr>
       <td>${o.numero}</td>
       <td>${fmtDateBR(o.data)}</td>
-      <td>${o.cliente?.razao||'-'}</td>
+      <td>${o.cliente?.razao||'-'}${badgeCNPJ}</td>
       <td>${o.cliente?.uf||'-'}</td>
       <td>${brl(o.totalGeral)}</td>
       <td>
@@ -2555,7 +2596,8 @@ function renderOrcamentosList(){
         <button class="link-btn" onclick="gerarPDFDe('${o.id}')">PDF</button> ·
         <button class="link-btn" onclick="excluirOrcamento('${o.id}')">Excluir</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 /* ============ PDF ============ */
