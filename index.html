@@ -1910,100 +1910,192 @@ function ocGerarPDF(){
   const dataEmissao = d.dataEmissao ? new Date(d.dataEmissao+'T12:00:00').toLocaleDateString('pt-BR') : '';
   const dataEntrega = d.dataEntrega ? new Date(d.dataEntrega+'T12:00:00').toLocaleDateString('pt-BR') : '';
 
-  // Dados de frete/prazo por UF
   const uf = d.uf || '';
   const freteInfo = uf ? FRETES.find(x=>x.uf===uf) : null;
   const tipoFrete = d.tipoFrete || 'cif';
   let freteLabel = '';
   let prazoLabel = freteInfo ? freteInfo.prazo : '';
   if(tipoFrete === 'cif'){
-    freteLabel = 'CIF — Frete por conta da Engefitas (incluso no pedido)';
+    freteLabel = 'Destinatário';
   } else if(tipoFrete === 'fob_calc'){
-    freteLabel = `FOB — R$ 100,00 + 4% sobre produtos = ${brl(frete)} (cobrado separado)`;
+    freteLabel = 'R$ 100,00 + 4%';
   } else {
-    freteLabel = 'FOB — Cliente define a transportadora e arca com o frete';
+    freteLabel = 'FOB — Cliente';
   }
-  // Aviso CIF no PDF (se abaixo do mínimo)
-  const avisoFretePDF = ''; // aviso de mínimo CIF é interno — não exibir ao cliente
 
-  const linhasItens = ocItens.map((it,i)=>`
-    <tr>
-      <td>${it.codigo}</td>
-      <td>${it.descricao}</td>
-      <td style="text-align:center;">${it.qtde.toFixed(2).replace('.',',')}</td>
-      <td style="text-align:center;">${it.unidade}</td>
-      <td style="text-align:right;">R$ ${(it.valorUnit*ocFatorIE).toFixed(2).replace('.',',')}</td>
-      <td style="text-align:right;font-weight:600;">R$ ${(it.qtde*it.valorUnit*ocFatorIE).toFixed(2).replace('.',',')}</td>
-    </tr>`).join('');
-  const avisoSemIEPDF = ocSemIE ? `<div style="background:#fff3cd;border:1px solid #ffc107;padding:8px;margin:8px 0;font-size:12px;border-radius:4px;">
-    ⚠️ Preços acrescidos de 14% referente a ICMS/ST — cliente sem Inscrição Estadual.
+  // Linhas da tabela de itens com IPI e ICMS zerados (Engefitas style)
+  const linhasItens = ocItens.map((it, i) => {
+    const unitDisp = (it.valorUnit * ocFatorIE).toFixed(2).replace('.', ',');
+    const totalDisp = (it.qtde * it.valorUnit * ocFatorIE).toFixed(2).replace('.', ',');
+    const rowBg = i % 2 === 0 ? '#ffffff' : '#fafafa';
+    return `<tr style="background:${rowBg};">
+      <td style="padding:5px 6px;border-bottom:1px solid #e8e8e8;white-space:nowrap;">${it.codigo}</td>
+      <td style="padding:5px 6px;border-bottom:1px solid #e8e8e8;">${it.descricao}</td>
+      <td style="padding:5px 6px;border-bottom:1px solid #e8e8e8;text-align:center;">${it.qtde.toFixed(2).replace('.', ',')}</td>
+      <td style="padding:5px 6px;border-bottom:1px solid #e8e8e8;text-align:center;">${it.unidade}</td>
+      <td style="padding:5px 6px;border-bottom:1px solid #e8e8e8;text-align:right;">R$ ${unitDisp}</td>
+      <td style="padding:5px 6px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:600;">R$ ${totalDisp}</td>
+      <td style="padding:5px 6px;border-bottom:1px solid #e8e8e8;text-align:right;">0,00</td>
+      <td style="padding:5px 6px;border-bottom:1px solid #e8e8e8;text-align:right;">0,00</td>
+    </tr>`;
+  }).join('');
+
+  const avisoSemIEPDF = ocSemIE ? `<div style="background:#fff3cd;border:1px solid #ffc107;padding:8px 10px;margin:10px 0;font-size:11px;border-radius:3px;">
+    &#9888; Preços acrescidos de 14% referente a ICMS/ST — cliente sem Inscrição Estadual.
   </div>` : '';
-  const html = `
-  <div id="oc_pdf_doc">
-    <!-- CABEÇALHO -->
-    <div class="oc-header">
-      <div style="display:flex;align-items:flex-start;">
-        <div class="oc-logo-box">FC<div class="oc-logo-sub">Consultoria</div></div>
-        <div class="oc-empresa">
-          <strong style="font-size:13px;">FC CONSULTORIA E REPRESENTAÇÃO</strong><br>
-          Representante Engefitas / ProGlaze — Mato Grosso<br>
-          ${cfg.cidade||'Sinop, MT'}<br>
-          Tel: ${cfg.telefone||'(66) 9 9986-7984'} &nbsp;|&nbsp; ${cfg.email||'FCconsultoria25@hotmail.com'}
-        </div>
-      </div>
-      <div class="oc-numero-box">
-        <div class="label">ORÇAMENTO</div>
-        <div class="num">${d.numero||'—'}</div>
-        <div class="datas">
-          <b>Emissão:</b> ${dataEmissao}<br>
-          ${dataEntrega ? '<b>Entrega prevista:</b> '+dataEntrega+'<br>' : ''}
-          ${prazoLabel ? '<b>Prazo de entrega:</b> '+prazoLabel : ''}
-        </div>
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Orçamento ${d.numero||''} — FC Consultoria</title>
+<style>
+  @media print { body { margin: 0; } @page { margin: 12mm 10mm; } }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #111; background: #fff; }
+  .page { max-width: 210mm; margin: 0 auto; padding: 14px 16px; }
+  hr.sep { border: none; border-top: 1px solid #ccc; margin: 10px 0; }
+  /* Cabeçalho */
+  .hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .hd-left { display: flex; align-items: flex-start; gap: 12px; }
+  .logo-box { width: 72px; height: 72px; background: #f5a623; border-radius: 4px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 22px; color: #fff; line-height: 1.1; flex-shrink: 0; }
+  .logo-sub { font-size: 9px; font-weight: 600; }
+  .empresa { line-height: 1.55; }
+  .empresa strong { font-size: 13px; }
+  .empresa-sub { font-size: 10.5px; color: #444; }
+  .oc-box { text-align: right; }
+  .oc-label { font-size: 10px; color: #888; letter-spacing: .06em; text-transform: uppercase; }
+  .oc-num { font-size: 26px; font-weight: 900; color: #111; line-height: 1.1; }
+  .oc-datas { font-size: 10px; color: #444; margin-top: 4px; line-height: 1.7; }
+  /* Cliente */
+  .cli { line-height: 1.8; }
+  .cli-row { display: flex; gap: 20px; flex-wrap: wrap; }
+  .cli-row span { white-space: nowrap; }
+  /* Itens */
+  table.itens { width: 100%; border-collapse: collapse; margin: 0; }
+  table.itens thead tr { background: #f0f0f0; }
+  table.itens th { padding: 6px 6px; text-align: left; font-size: 10.5px; font-weight: 700;
+    border-bottom: 2px solid #ccc; white-space: nowrap; }
+  table.itens th.r { text-align: right; }
+  table.itens th.c { text-align: center; }
+  table.itens td { font-size: 10.5px; }
+  /* Condições / totais */
+  .footer-grid { display: flex; gap: 16px; align-items: flex-start; }
+  .footer-cond { flex: 1; line-height: 1.8; font-size: 11px; }
+  .totais-box { border: 1px solid #ddd; border-radius: 3px; padding: 8px 12px;
+    min-width: 260px; font-size: 10.5px; line-height: 1.75; }
+  .totais-row { display: flex; justify-content: space-between; gap: 8px; }
+  .totais-row.big { font-size: 13px; font-weight: 700; border-top: 1px solid #ccc; padding-top: 4px; margin-top: 2px; }
+  .rodape { font-size: 9.5px; color: #666; text-align: center; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- CABEÇALHO -->
+  <div class="hd">
+    <div class="hd-left">
+      <div class="logo-box">FC<div class="logo-sub">Consultoria</div></div>
+      <div class="empresa">
+        <strong>FC CONSULTORIA E REPRESENTAÇÃO</strong><br>
+        <span class="empresa-sub">Representante Engefitas / ProGlaze — Mato Grosso</span><br>
+        <span class="empresa-sub">${cfg.cidade||'Sinop - MT'}</span><br>
+        <span class="empresa-sub">Tel: ${cfg.telefone||'66999867984'} &nbsp;|&nbsp; ${cfg.email||'FCconsultoria25@hotmail.com'}</span>
       </div>
     </div>
-    <!-- CLIENTE -->
-    <div class="oc-cliente-box">
-      <div><strong>Nome:</strong> ${d.cliNome||''} &nbsp;&nbsp; <strong>CNPJ/CPF:</strong> ${d.cliCnpj||''} &nbsp;&nbsp; <strong>Tel:</strong> ${d.cliTel1||''} ${d.cliTel2?'/ '+d.cliTel2:''}</div>
-      <div><strong>Endereço:</strong> ${d.cliEnd||''} &nbsp;&nbsp; <strong>Bairro:</strong> ${d.cliBairro||''}</div>
-      <div><strong>Cidade:</strong> ${d.cliCidade||''} ${uf ? '— '+uf : ''} &nbsp;&nbsp; <strong>CEP:</strong> ${d.cliCep||''}</div>
-    </div>
-    <!-- ITENS -->
-    <table class="oc-itens">
-      <thead><tr>
-        <th>Cód.</th><th>Descrição</th>
-        <th style="text-align:center;">Quant.</th><th style="text-align:center;">UN</th>
-        <th style="text-align:right;">R$ Unit.</th><th style="text-align:right;">Total R$</th>
-      </tr></thead>
-      <tbody>${linhasItens}</tbody>
-    </table>
-    <!-- RODAPÉ DE CAMPOS -->
-    <div class="oc-footer-grid">
-      <div style="font-size:11.5px;line-height:1.9;">
-        <div><strong>Cond. Pagamento:</strong> ${d.condpag||''}</div>
-        <div><strong>Frete:</strong> ${freteLabel}</div>
-        <div><strong>Transportadora:</strong> ${d.transportadora||'A COMBINAR'}</div>
-        ${d.obs?`<div><strong>Observações:</strong> ${d.obs}</div>`:''}
-        <div><strong>Vendedor:</strong> ${cfg.nome||'FC Consultoria'}</div>
-      </div>
-      <div class="oc-totais">
-        <div><strong>Total de Itens:</strong> ${ocItens.length}</div>
-        <div><strong>Qtde Total:</strong> ${totalQtde}</div>
-        <div><strong>Subtotal Produtos:</strong> ${brl(subtotal)}</div>
-        ${frete > 0 ? `<div><strong>Frete:</strong> ${brl(frete)}</div>` : '<div><strong>Frete:</strong> CIF (incluso)</div>'}
-        <div class="oc-total-geral">Total R$: ${brl(geral)}</div>
+    <div class="oc-box">
+      <div class="oc-label">ORÇAMENTO</div>
+      <div class="oc-num">${d.numero||'—'}</div>
+      <div class="oc-datas">
+        Data Emissão: ${dataEmissao}<br>
+        Data Entrega: ${dataEntrega}
+        ${prazoLabel ? '<br>Prazo: '+prazoLabel : ''}
       </div>
     </div>
-    ${avisoFretePDF}
-    ${avisoSemIEPDF}
-    <div class="oc-rodape">
-      Orçamento gerado por FC Consultoria e Representação — Representante Engefitas / ProGlaze no Mato Grosso<br>
-      ${cfg.email||'FCconsultoria25@hotmail.com'} | ${cfg.telefone||'(66) 9 9986-7984'} | Validade: 3 dias
+  </div>
+
+  <hr class="sep">
+
+  <!-- CLIENTE -->
+  <div class="cli">
+    <div class="cli-row">
+      <span><strong>Nome:</strong> ${d.cliNome||''}</span>
+      <span><strong>CNPJ/CPF:</strong> ${d.cliCnpj||''}</span>
+      <span><strong>Telefone:</strong> ${d.cliTel1||''}</span>
     </div>
-  </div>`;
-  document.getElementById('oc_pdf_content').innerHTML = html;
-  document.getElementById('oc_pdf_preview').style.display = 'block';
-  window.print();
-  setTimeout(()=>{ document.getElementById('oc_pdf_preview').style.display='none'; }, 2000);
+    <div class="cli-row">
+      <span><strong>Endereço:</strong> ${d.cliEnd||''}</span>
+      <span><strong>Telefone:</strong> ${d.cliTel2||''}</span>
+    </div>
+    <div class="cli-row">
+      <span><strong>Cidade:</strong> ${d.cliCidade||''}${uf ? '/'+uf : ''}</span>
+      <span><strong>Bairro:</strong> ${d.cliBairro||''}</span>
+      <span><strong>Cep:</strong> ${d.cliCep||''}</span>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ITENS -->
+  <table class="itens">
+    <thead>
+      <tr>
+        <th style="width:80px;">Cód.</th>
+        <th>Descrição</th>
+        <th class="c" style="width:64px;">Quant.</th>
+        <th class="c" style="width:36px;">UN</th>
+        <th class="r" style="width:80px;">R$ Unit.</th>
+        <th class="r" style="width:90px;">Total R$</th>
+        <th class="r" style="width:74px;">Valor IPI</th>
+        <th class="r" style="width:58px;">%ICMS</th>
+      </tr>
+    </thead>
+    <tbody>${linhasItens}</tbody>
+  </table>
+
+  <hr class="sep">
+
+  <!-- CONDIÇÕES + TOTAIS -->
+  ${avisoSemIEPDF}
+  <div class="footer-grid">
+    <div class="footer-cond">
+      <div><strong>Tabela Venc.:</strong> ${d.condpag||''}</div>
+      <div><strong>Transportadora:</strong> ${d.transportadora||'A COMBINAR'}</div>
+      ${d.obs ? `<div><strong>Observações:</strong> ${d.obs}</div>` : ''}
+      <div><strong>Vendedor:</strong> FC Consultoria e Representação</div>
+    </div>
+    <div class="totais-box">
+      <div class="totais-row"><span>Total de Itens:</span><span>${ocItens.length}</span></div>
+      <div class="totais-row"><span>Valor IPI:</span><span>R$ 0,00</span></div>
+      <div class="totais-row"><span>Total dos Produtos:</span><span>${brl(subtotal)}</span></div>
+      <div class="totais-row"><span>Total Quantidade:</span><span>${totalQtde}</span></div>
+      <div class="totais-row"><span>Valor ST:</span><span>R$ 0,00</span></div>
+      <div class="totais-row"><span>Frete:</span><span>${freteLabel}</span></div>
+      <div class="totais-row"><span>Valor Frete:</span><span>${frete > 0 ? brl(frete) : 'R$ 0,00'}</span></div>
+      <div class="totais-row"><span>Validade da Proposta:</span><span>3 dias</span></div>
+      <div class="totais-row big"><span>Total R$:</span><span>${brl(geral)}</span></div>
+      <div class="totais-row"><span>Valor ICMS:</span><span>R$ 0,00</span></div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <div class="rodape">
+    Orçamento gerado por FC Consultoria e Representação — Representante Engefitas / ProGlaze no Mato Grosso<br>
+    ${cfg.email||'FCconsultoria25@hotmail.com'} | ${cfg.telefone||'(66) 9 9986-7984'}
+  </div>
+
+</div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.onload = function(){ win.print(); };
 }
 
 /* ============ CONFIG ============ */
