@@ -1924,14 +1924,7 @@ function ocGerarPDF(){
     freteLabel = 'FOB — Cliente define a transportadora e arca com o frete';
   }
   // Aviso CIF no PDF (se abaixo do mínimo)
-  let avisoFretePDF = '';
-  if(freteInfo && subtotal < freteInfo.min && tipoFrete === 'fob_calc'){
-    const faltaCIF = freteInfo.min - subtotal;
-    avisoFretePDF = `<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:5px;padding:7px 10px;font-size:10.5px;margin-top:6px;">
-      ℹ️ Pedido abaixo do mínimo CIF para ${UF_REGIAO[uf]} (${uf}): <strong>${brl(freteInfo.min)}</strong>.
-      Faltam <strong>${brl(faltaCIF)}</strong> em produtos para o frete ser por conta da Engefitas.
-    </div>`;
-  }
+  const avisoFretePDF = ''; // aviso de mínimo CIF é interno — não exibir ao cliente
 
   const linhasItens = ocItens.map((it,i)=>`
     <tr>
